@@ -51,11 +51,21 @@ class GameState:
         self.ending_type = None
         
     def update(self, dt):
-        """Update game state"""
+        """Update game state with micro time dilation"""
         self.game_time += dt
         
-        # Update subsystems
-        self.player.update(dt)
+        # Calculate time dilation factors for different entities
+        # Player time stretches when hesitating (indecisive = slower perception)
+        player_hesitation = self.behavior_state.hesitation_score if hasattr(self.behavior_state, 'hesitation_score') else 0
+        player_time_dilation = 1.0 - (player_hesitation * 0.2)  # Up to 20% slower when hesitating
+        
+        # Enemy time accelerates when off-screen (creates uncanny feeling)
+        # AI speech causes subtle time lag (reality slipping)
+        ai_speaking = self.ai_companion.current_advice is not None
+        enemy_time_dilation = 1.15 if ai_speaking else 1.0
+        
+        # Update player with time dilation
+        self.player.update(dt, player_time_dilation)
         
         # Update reality system (affects world rendering and behavior)
         self.reality_system.update(dt, self)
@@ -63,12 +73,9 @@ class GameState:
         # World update with reality stability
         self.world.update(dt, self.trust_level, self.reality_system)
         
-        # Check if AI is currently speaking
-        ai_speaking = self.ai_companion.current_advice is not None
-        
-        # Update enemies with perception (hesitation, stillness, speech)
+        # Update enemies with accelerated time when appropriate
         self.enemy_manager.update(
-            dt, 
+            dt * enemy_time_dilation,  # Enemies move faster during AI speech
             self.player, 
             self.trust_level, 
             self.behavior_state,
