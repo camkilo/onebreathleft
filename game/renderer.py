@@ -58,6 +58,14 @@ class Renderer:
         # Time tracking for animations
         self.time_accumulator = 0
         
+        # Perceptual glitches
+        self.sub_pixel_jitter_x = 0
+        self.sub_pixel_jitter_y = 0
+        self.camera_desync_x = 0
+        self.camera_desync_y = 0
+        self.last_camera_x = 0
+        self.last_camera_y = 0
+        
         # Pre-generate noise pattern for film grain
         self.noise_surface = None
         self._generate_noise_pattern()
@@ -77,6 +85,9 @@ class Renderer:
     def render(self, game_state):
         """Render the current game state with cinematic effects"""
         self.time_accumulator += 0.016  # Approximate frame time
+        
+        # Update perceptual glitches (creates subtle dread)
+        self._update_perceptual_glitches(game_state)
         
         # Update cinematic effects
         self._update_camera_effects(game_state)
@@ -111,6 +122,31 @@ class Renderer:
         # Render ending if triggered
         if game_state.ending_triggered:
             self._render_ending(game_state)
+    
+    def _update_perceptual_glitches(self, game_state):
+        """Update perceptual glitches for subtle dread"""
+        # Sub-pixel jitter (very subtle, creates unease)
+        if random.random() < 0.3:  # 30% chance each frame
+            self.sub_pixel_jitter_x = random.uniform(-0.5, 0.5)
+            self.sub_pixel_jitter_y = random.uniform(-0.5, 0.5)
+        else:
+            self.sub_pixel_jitter_x = 0
+            self.sub_pixel_jitter_y = 0
+        
+        # One-frame camera desync (occasionally lag behind by one frame)
+        reality_instability = 1.0 - game_state.reality_system.stability if hasattr(game_state, 'reality_system') else 0
+        
+        if reality_instability > 0.3 and random.random() < reality_instability * 0.1:
+            # Store last frame's camera position for desync
+            self.camera_desync_x = self.last_camera_x
+            self.camera_desync_y = self.last_camera_y
+        else:
+            self.camera_desync_x = self.camera_offset_x
+            self.camera_desync_y = self.camera_offset_y
+        
+        # Update last camera position
+        self.last_camera_x = self.camera_offset_x
+        self.last_camera_y = self.camera_offset_y
     
     def _update_camera_effects(self, game_state):
         """Update cinematic camera effects"""
@@ -204,14 +240,14 @@ class Renderer:
                 self.screen.blit(circle_surface, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
             
     def _get_camera_position(self, world_x, world_y, player):
-        """Convert world position to screen position with camera effects"""
+        """Convert world position to screen position with camera effects and perceptual glitches"""
         # Base screen position (player-centered)
         screen_x = self.width // 2 + (world_x - player.x)
         screen_y = self.height // 2 + (world_y - player.y)
         
-        # Apply camera drag
-        screen_x += self.camera_offset_x
-        screen_y += self.camera_offset_y
+        # Apply camera drag with potential desync
+        screen_x += self.camera_desync_x
+        screen_y += self.camera_desync_y
         
         # Apply camera shake
         if self.camera_shake_intensity > 0:
@@ -220,16 +256,22 @@ class Renderer:
             screen_x += shake_x
             screen_y += shake_y
         
+        # Apply sub-pixel jitter for subtle unease
+        screen_x += self.sub_pixel_jitter_x
+        screen_y += self.sub_pixel_jitter_y
+        
         return int(screen_x), int(screen_y)
             
     def _render_fog(self, game_state):
-        """Render atmospheric fog effect with dynamic lighting"""
+        """Render atmospheric fog effect with dynamic lighting and space ripples"""
         # Dynamic light radius based on game state
         base_visibility = game_state.world.get_visibility_radius(game_state.player.fear)
         
         # Shrink light when AI lies
+        lie_count = 0
         if hasattr(game_state, 'reality_system'):
-            lie_factor = 1.0 - (game_state.reality_system.lie_count * 0.05)
+            lie_count = game_state.reality_system.lie_count
+            lie_factor = 1.0 - (lie_count * 0.05)
             lie_factor = max(0.5, lie_factor)
             base_visibility *= lie_factor
         
@@ -258,6 +300,46 @@ class Renderer:
         fog_r = int(self.color_fog[0] + (20 * trust_shift))
         fog_g = int(self.color_fog[1] + (15 * trust_shift))
         fog_b = int(self.color_fog[2] - (10 * trust_shift))
+        fog_surface.fill((fog_r, fog_g, fog_b))
+        
+        fog_surface.set_alpha(darkness)
+        self.screen.blit(fog_surface, (0, 0))
+        
+        # Add space ripples when AI has lied recently
+        if lie_count > 0:
+            self._render_space_ripples(game_state, lie_count)
+    
+    def _render_space_ripples(self, game_state, lie_count):
+        """Render subtle space distortion ripples when AI lies"""
+        # Create ripple effect emanating from center
+        center_x = self.width // 2
+        center_y = self.height // 2
+        
+        # Multiple ripples based on lie count
+        for i in range(min(lie_count, 3)):
+            # Ripple expands over time
+            ripple_time = (self.time_accumulator * 2 + i * 2) % 10
+            ripple_radius = ripple_time * 50
+            
+            if ripple_radius < 400:  # Only render while expanding
+                # Subtle distortion line
+                ripple_alpha = int((1 - ripple_time / 10) * 80)
+                
+                ripple_surface = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
+                
+                # Draw concentric circles for ripple
+                pygame.draw.circle(ripple_surface, (100, 110, 130, ripple_alpha), 
+                                 (center_x, center_y), int(ripple_radius), 2)
+                
+                # Add inner and outer rings for depth
+                if ripple_radius > 20:
+                    pygame.draw.circle(ripple_surface, (80, 90, 110, ripple_alpha // 2), 
+                                     (center_x, center_y), int(ripple_radius - 10), 1)
+                if ripple_radius < 390:
+                    pygame.draw.circle(ripple_surface, (80, 90, 110, ripple_alpha // 2), 
+                                     (center_x, center_y), int(ripple_radius + 10), 1)
+                
+                self.screen.blit(ripple_surface, (0, 0))
         fog_surface.fill((fog_r, fog_g, fog_b))
         
         fog_surface.set_alpha(darkness)

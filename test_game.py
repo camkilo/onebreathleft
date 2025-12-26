@@ -45,9 +45,13 @@ def test_player():
     assert player.stamina == 100
     assert player.fear == 0
     
-    # Test movement
+    # Test movement (now uses target velocity with interpolation)
     player.move(1, 0)
-    assert player.velocity_x > 0
+    assert player.target_velocity_x > 0
+    
+    # Update player to apply velocity interpolation
+    player.update(0.1)  # Small dt to test update
+    assert player.velocity_x > 0  # Should have some velocity now
     
     # Test damage
     player.take_damage(20)
