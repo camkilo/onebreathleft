@@ -2,11 +2,81 @@
 
 A psychological survival game where the player is guided by an AI companion that is actually a recording from their previous playthrough.
 
-## Concept
+## Play Online
 
-In "One Breath Left," you navigate a foggy, minimal world filled with abstract enemies. Your only guide is an AI companion - but this companion is actually you from your last playthrough. Every decision you make is recorded and will shape the advice given to the next player (or your next attempt).
+**Live Demo**: [Deploy on Render](https://render.com) or [Deploy on Vercel](https://vercel.com)
 
-## Features
+The game is available in two versions:
+- **Web Version** (recommended): Play directly in your browser
+- **Desktop Version**: Download and run locally with Python + Pygame
+
+## Web Version (Browser-Based)
+
+### Quick Start
+1. Visit the deployed URL (Render or Vercel)
+2. Game loads automatically in your browser
+3. Use WASD to move, Shift to run
+4. Press Y to follow AI advice, N to ignore it
+
+### Deploy Your Own Instance
+
+#### Deploy on Render
+1. Fork this repository
+2. Go to [Render Dashboard](https://dashboard.render.com)
+3. Click "New +" → "Web Service"
+4. Connect your GitHub repository
+5. Render will auto-detect the `render.yaml` configuration
+6. Click "Create Web Service"
+7. Your game will be live at `https://your-app.onrender.com`
+
+#### Deploy on Vercel
+1. Fork this repository
+2. Go to [Vercel Dashboard](https://vercel.com/dashboard)
+3. Click "Add New..." → "Project"
+4. Import your GitHub repository
+5. Vercel will auto-detect the `vercel.json` configuration
+6. Click "Deploy"
+7. Your game will be live at `https://your-app.vercel.app`
+
+### Local Development (Web Version)
+```bash
+# Install dependencies
+pip install -r requirements-web.txt
+
+# Run the web server
+python app.py
+
+# Open browser to http://localhost:5000
+```
+
+## Desktop Version (Pygame)
+
+### Installation
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the game
+python main.py
+```
+
+### Desktop Version Controls
+
+- **WASD / Arrow Keys**: Move
+- **Shift**: Run (drains stamina)
+- **Y**: Accept/Follow AI advice (increases trust)
+- **N**: Reject/Ignore AI advice (decreases trust)
+- **ESC**: Quit game
+
+### Web Version Controls
+
+- **WASD / Arrow Keys**: Move
+- **Shift**: Run (drains stamina)
+- **Y / Click "Follow"**: Accept AI advice (increases trust)
+- **N / Click "Ignore"**: Reject AI advice (decreases trust)
+
+## Game Features
 
 ### Core Mechanics
 - **Survival System**: Manage health, stamina, and fear levels
@@ -31,24 +101,6 @@ In "One Breath Left," you navigate a foggy, minimal world filled with abstract e
 - **Defiance**: Complete rejection of the AI
 - **Balance**: Find your own path between trust and defiance
 - **Transcendence**: Understand the true nature of the cycle
-
-## Installation
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the game
-python main.py
-```
-
-## Controls
-
-- **WASD / Arrow Keys**: Move
-- **Shift**: Run (drains stamina)
-- **Y**: Accept/Follow AI advice (increases trust)
-- **N**: Reject/Ignore AI advice (decreases trust)
-- **ESC**: Quit game
 
 ## Gameplay Tips
 

@@ -14,12 +14,19 @@ def test_imports():
     print("Testing imports...")
     try:
         from game.game_state import GameState
+        from game.game_state_web import GameStateWeb
         from game.player import Player
         from game.world import World
         from game.ai_companion import AICompanion
         from game.enemy_manager import EnemyManager, Enemy
-        from game.renderer import Renderer
-        from game.input_handler import InputHandler
+        
+        # Optional pygame-dependent imports
+        try:
+            from game.renderer import Renderer
+            from game.input_handler import InputHandler
+        except ImportError:
+            print("  (Pygame modules skipped - not required for web version)")
+        
         print("✓ All imports successful")
         return True
     except ImportError as e:
@@ -129,6 +136,32 @@ def test_game_state():
     print("✓ Game State tests passed")
     return True
 
+def test_web_game_state():
+    """Test web game state management"""
+    print("\nTesting Web Game State...")
+    from game.game_state_web import GameStateWeb
+    
+    state = GameStateWeb()
+    assert state.player is not None
+    assert state.world is not None
+    assert state.ai_companion is not None
+    assert state.enemy_manager is not None
+    
+    # Test input application
+    state.apply_input({'move_x': 1, 'move_y': 0, 'running': False})
+    assert state.current_input['move_x'] == 1
+    
+    # Test state serialization
+    state_dict = state.get_state_dict()
+    assert 'player' in state_dict
+    assert 'world' in state_dict
+    assert 'enemies' in state_dict
+    assert 'ai' in state_dict
+    assert 'game' in state_dict
+    
+    print("✓ Web Game State tests passed")
+    return True
+
 def test_playthrough_recording():
     """Test playthrough recording system"""
     print("\nTesting Playthrough Recording...")
@@ -186,6 +219,7 @@ def main():
         test_ai_companion,
         test_enemy_manager,
         test_game_state,
+        test_web_game_state,
         test_playthrough_recording,
         test_endings,
     ]
