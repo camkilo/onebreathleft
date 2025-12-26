@@ -29,7 +29,6 @@ class Player:
         
         # State
         self.is_running = False
-        self.is_hiding = False
         
     def update(self, dt):
         """Update player state"""

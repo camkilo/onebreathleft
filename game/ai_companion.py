@@ -175,11 +175,13 @@ class AICompanion:
             "calm": "panic",
         }
         
+        # Apply all inversions found in the text
+        inverted_text = text.lower()
         for original, inverted in inversions.items():
-            if original in text.lower():
-                return text.lower().replace(original, inverted)
+            if original in inverted_text:
+                inverted_text = inverted_text.replace(original, inverted)
                 
-        return text
+        return inverted_text
         
     def get_current_advice(self):
         """Get current advice text"""
