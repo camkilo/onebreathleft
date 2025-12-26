@@ -364,6 +364,53 @@ def test_reality_system():
     print("✓ Reality System tests passed")
     return True
 
+def test_perception_based_enemies():
+    """Test perception-based enemy system"""
+    print("\nTesting Perception-Based Enemies...")
+    from game.enemy_manager import Enemy, EnemyManager
+    from game.player import Player
+    from game.behavior_profiler import BehaviorState
+    
+    player = Player(400, 300)
+    enemy = Enemy(500, 300, "shadow")
+    behavior = BehaviorState()
+    
+    # Test basic enemy properties
+    assert enemy.player_still_timer == 0.0
+    assert enemy.attracted_to_stillness == False
+    assert enemy.attracted_to_speech == False
+    
+    # Test update with behavior state
+    attacked = enemy.update(0.1, player, 0.5, behavior, False)
+    assert isinstance(attacked, bool)
+    
+    # Test update with AI speaking (should increase detection)
+    attacked = enemy.update(0.1, player, 0.5, behavior, True)
+    assert enemy.speech_attraction_timer > 0
+    
+    # Test stillness detection
+    # Keep player in same position for multiple updates
+    for _ in range(30):
+        enemy.update(0.1, player, 0.5, behavior, False)
+    
+    # After being still, timer should have increased
+    assert enemy.player_still_timer > 2.0
+    assert enemy.attracted_to_stillness == True
+    
+    # Test with high hesitation behavior
+    behavior.hesitation_score = 0.8
+    initial_detection = enemy.detection_radius
+    # Enemy should be more likely to detect hesitant player
+    # (tested through effective_radius calculation in update)
+    
+    # Test enemy manager with perception parameters
+    manager = EnemyManager()
+    manager.enemies.append(enemy)
+    manager.update(0.1, player, 0.5, behavior, True)
+    
+    print("✓ Perception-Based Enemies tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -383,6 +430,7 @@ def main():
         test_behavior_profiler,
         test_ai_intent_system,
         test_reality_system,
+        test_perception_based_enemies,
     ]
     
     passed = 0

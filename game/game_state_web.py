@@ -90,7 +90,18 @@ class GameStateWeb:
         # World update with reality stability
         self.world.update(dt, self.trust_level, self.reality_system)
         
-        self.enemy_manager.update(dt, self.player, self.trust_level)
+        # Check if AI is currently speaking
+        ai_speaking = self.ai_companion.current_advice is not None
+        
+        # Update enemies with perception (hesitation, stillness, speech)
+        self.enemy_manager.update(
+            dt, 
+            self.player, 
+            self.trust_level, 
+            self.behavior_state,
+            ai_speaking
+        )
+        
         self.ai_companion.update(dt, self)
         
         # Update behavior profiler (feeds all adaptive systems)
