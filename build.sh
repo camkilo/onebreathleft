@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Build script for deploying with pygame support
 # Installs SDL2 system dependencies before installing Python packages
+#
+# NOTE: This script is designed to run in cloud deployment environments
+# (e.g., Render, Heroku, Railway) where build commands have the necessary
+# privileges to install system packages. If running locally, you may need
+# to run with sudo: sudo bash build.sh
 
 set -e  # Exit on error
 
