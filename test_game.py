@@ -206,6 +206,276 @@ def test_endings():
     print("✓ Ending tests passed")
     return True
 
+def test_behavior_profiler():
+    """Test behavior profiler"""
+    print("\nTesting Behavior Profiler...")
+    from game.behavior_profiler import BehaviorState
+    from game.player import Player
+    from game.enemy_manager import EnemyManager
+    
+    profiler = BehaviorState(window_size=30)
+    player = Player(400, 300)
+    enemy_manager = EnemyManager()
+    
+    # Test initial state
+    assert 0 <= profiler.trust <= 1
+    assert 0 <= profiler.fear <= 1
+    assert 0 <= profiler.independence <= 1
+    
+    # Test advice tracking
+    profiler.on_advice_given(1.0)
+    assert profiler.advice_given_count == 1
+    
+    profiler.on_advice_followed(2.0)
+    assert profiler.advice_followed_count == 1
+    assert len(profiler.reaction_times) == 1
+    assert profiler.reaction_times[0] == 1.0  # 2.0 - 1.0
+    
+    profiler.on_advice_given(5.0)
+    profiler.on_advice_ignored(8.0)
+    assert profiler.advice_ignored_count == 1
+    assert len(profiler.reaction_times) == 2
+    
+    # Test update
+    player.move(1, 0)
+    profiler.update(0.1, player, enemy_manager, 10.0)
+    
+    # Test state serialization
+    state_dict = profiler.get_state_dict()
+    assert 'trust' in state_dict
+    assert 'fear' in state_dict
+    assert 'independence' in state_dict
+    assert 'average_reaction_time' in state_dict
+    assert 'advice_follow_ratio' in state_dict
+    assert 'hesitation_score' in state_dict
+    assert 'risk_tolerance' in state_dict
+    
+    print("✓ Behavior Profiler tests passed")
+    return True
+
+def test_ai_intent_system():
+    """Test AI intent system"""
+    print("\nTesting AI Intent System...")
+    from game.ai_companion import AICompanion, AIIntent
+    from game.game_state import GameState
+    
+    state = GameState()
+    ai = state.ai_companion
+    
+    # Test initial intent
+    assert ai.current_intent in [AIIntent.PROTECT, AIIntent.CONTROL, AIIntent.TEST, AIIntent.CONFESS]
+    
+    # Test intent evaluation
+    initial_intent = ai.current_intent
+    ai._evaluate_intent(state)
+    # Intent should be set after evaluation
+    assert ai.current_intent is not None
+    
+    # Test intent weights
+    assert AIIntent.PROTECT in ai.intent_weights
+    assert AIIntent.CONTROL in ai.intent_weights
+    assert AIIntent.TEST in ai.intent_weights
+    assert AIIntent.CONFESS in ai.intent_weights
+    
+    # Test advice generation with intents
+    advice = ai._generate_advice(state)
+    assert 'text' in advice
+    assert 'type' in advice
+    assert 'intent' in advice
+    assert advice['intent'] in [AIIntent.PROTECT, AIIntent.CONTROL, AIIntent.TEST, AIIntent.CONFESS]
+    
+    # Test protective advice
+    state.player.health = 20
+    protective_advice = ai._generate_protective_advice(state)
+    assert 'text' in protective_advice
+    assert len(protective_advice['text']) > 0
+    
+    # Test controlling advice
+    controlling_advice = ai._generate_controlling_advice(state)
+    assert 'text' in controlling_advice
+    
+    # Test testing advice
+    testing_advice = ai._generate_testing_advice(state)
+    assert 'text' in testing_advice
+    
+    # Test confession advice (late game)
+    state.game_time = 300
+    confession_advice = ai._generate_confession_advice(state)
+    assert 'text' in confession_advice
+    
+    # Test confidence modifier
+    ai.confidence = 0.3
+    advice_with_modifier = ai._apply_confidence_modifier({'text': 'Go left', 'type': 'suggestion'})
+    assert 'text' in advice_with_modifier
+    
+    print("✓ AI Intent System tests passed")
+    return True
+
+def test_reality_system():
+    """Test reality degradation system"""
+    print("\nTesting Reality System...")
+    from game.reality_system import RealitySystem
+    from game.game_state import GameState
+    
+    state = GameState()
+    reality = state.reality_system
+    
+    # Test initial state
+    assert reality.stability == 1.0
+    assert reality.visual_stability == 1.0
+    assert reality.audio_stability == 1.0
+    assert reality.navigation_stability == 1.0
+    
+    # Test update
+    reality.update(0.1, state)
+    assert reality.stability >= 0.0 and reality.stability <= 1.0
+    
+    # Test fog density modifier
+    base_fog = 0.5
+    modified_fog = reality.apply_fog_density_modifier(base_fog)
+    assert modified_fog >= base_fog  # Should increase fog
+    
+    # Test geometry warp
+    x, y = 100, 100
+    warped_x, warped_y = reality.apply_geometry_warp(x, y, 1.0)
+    assert isinstance(warped_x, (int, float))
+    assert isinstance(warped_y, (int, float))
+    
+    # Test movement unreliability
+    vx, vy = 100, 0
+    modified_vx, modified_vy = reality.apply_movement_unreliability(vx, vy)
+    assert isinstance(modified_vx, (int, float))
+    assert isinstance(modified_vy, (int, float))
+    
+    # Test with low trust (should degrade reality)
+    state.trust_level = 0.2
+    state.game_time = 60
+    reality.update(10.0, state)
+    assert reality.stability < 1.0  # Should degrade
+    
+    # Test state serialization
+    state_dict = reality.get_state_dict()
+    assert 'stability' in state_dict
+    assert 'visual_stability' in state_dict
+    assert 'audio_stability' in state_dict
+    assert 'navigation_stability' in state_dict
+    assert 'lie_count' in state_dict
+    
+    print("✓ Reality System tests passed")
+    return True
+
+def test_perception_based_enemies():
+    """Test perception-based enemy system"""
+    print("\nTesting Perception-Based Enemies...")
+    from game.enemy_manager import Enemy, EnemyManager
+    from game.player import Player
+    from game.behavior_profiler import BehaviorState
+    
+    player = Player(400, 300)
+    enemy = Enemy(500, 300, "shadow")
+    behavior = BehaviorState()
+    
+    # Test basic enemy properties
+    assert enemy.player_still_timer == 0.0
+    assert enemy.attracted_to_stillness == False
+    assert enemy.attracted_to_speech == False
+    
+    # Test update with behavior state
+    attacked = enemy.update(0.1, player, 0.5, behavior, False)
+    assert isinstance(attacked, bool)
+    
+    # Test update with AI speaking (should increase detection)
+    attacked = enemy.update(0.1, player, 0.5, behavior, True)
+    assert enemy.speech_attraction_timer > 0
+    
+    # Test stillness detection
+    # Keep player in same position for multiple updates
+    for _ in range(30):
+        enemy.update(0.1, player, 0.5, behavior, False)
+    
+    # After being still, timer should have increased
+    assert enemy.player_still_timer > 2.0
+    assert enemy.attracted_to_stillness == True
+    
+    # Test with high hesitation behavior
+    behavior.hesitation_score = 0.8
+    initial_detection = enemy.detection_radius
+    # Enemy should be more likely to detect hesitant player
+    # (tested through effective_radius calculation in update)
+    
+    # Test enemy manager with perception parameters
+    manager = EnemyManager()
+    manager.enemies.append(enemy)
+    manager.update(0.1, player, 0.5, behavior, True)
+    
+    print("✓ Perception-Based Enemies tests passed")
+    return True
+
+def test_cross_playthrough_memory():
+    """Test cross-playthrough memory and AI adaptation"""
+    print("\nTesting Cross-Playthrough Memory...")
+    import json
+    import os
+    from game.ai_companion import AICompanion, AIIntent
+    from game.game_state import GameState
+    
+    # Create a mock previous playthrough
+    os.makedirs("playthroughs", exist_ok=True)
+    mock_playthrough = {
+        "ending": "death",
+        "final_trust": 0.3,
+        "behavior_profile": {
+            "independence": 0.3,  # More dependent player
+            "hesitation_score": 0.6,
+            "risk_tolerance": 0.4,
+            "average_reaction_time": 6.0,
+            "advice_follow_ratio": 0.4
+        },
+        "actions": []
+    }
+    
+    with open("playthroughs/latest.json", "w") as f:
+        json.dump(mock_playthrough, f)
+    
+    # Create new AI and load previous playthrough
+    ai = AICompanion()
+    ai.load_previous_playthrough()
+    
+    # Test that AI adapted to death ending
+    assert ai.doubt > 0.5  # Should be more doubtful
+    # Protection intent should be prioritized (may be adjusted by behavior)
+    assert ai.intent_weights[AIIntent.PROTECT] > 0.4
+    
+    # Test opening greeting references previous behavior
+    greeting = ai.get_opening_greeting()
+    assert isinstance(greeting, str)
+    assert len(greeting) > 0
+    
+    # Test that AI adapted to behavior profile
+    # Dependent + hesitant player should get more guidance
+    assert ai.intent_weights[AIIntent.PROTECT] > 0.4
+    
+    # Test with high trust previous playthrough
+    mock_playthrough["final_trust"] = 0.9
+    mock_playthrough["ending"] = "trust"
+    with open("playthroughs/latest.json", "w") as f:
+        json.dump(mock_playthrough, f)
+    
+    ai2 = AICompanion()
+    ai2.load_previous_playthrough()
+    
+    # Should be more confident and controlling
+    assert ai2.confidence > 0.7
+    assert ai2.doubt < 0.3
+    assert ai2.intent_weights[AIIntent.CONTROL] > 0.4
+    
+    # Clean up
+    if os.path.exists("playthroughs/latest.json"):
+        os.remove("playthroughs/latest.json")
+    
+    print("✓ Cross-Playthrough Memory tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -222,6 +492,11 @@ def main():
         test_web_game_state,
         test_playthrough_recording,
         test_endings,
+        test_behavior_profiler,
+        test_ai_intent_system,
+        test_reality_system,
+        test_perception_based_enemies,
+        test_cross_playthrough_memory,
     ]
     
     passed = 0

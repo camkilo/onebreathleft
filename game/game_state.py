@@ -10,6 +10,8 @@ from game.player import Player
 from game.world import World
 from game.ai_companion import AICompanion
 from game.enemy_manager import EnemyManager
+from game.behavior_profiler import BehaviorState
+from game.reality_system import RealitySystem
 
 class GameState:
     """Main game state manager"""
@@ -23,6 +25,12 @@ class GameState:
         # Load previous playthrough for AI companion
         self.ai_companion = AICompanion()
         self.ai_companion.load_previous_playthrough()
+        
+        # Behavior profiler (tracks how player behaves)
+        self.behavior_state = BehaviorState()
+        
+        # Reality system (environmental degradation)
+        self.reality_system = RealitySystem()
         
         # Game state
         self.game_time = 0
@@ -48,9 +56,29 @@ class GameState:
         
         # Update subsystems
         self.player.update(dt)
-        self.world.update(dt, self.trust_level)
-        self.enemy_manager.update(dt, self.player, self.trust_level)
+        
+        # Update reality system (affects world rendering and behavior)
+        self.reality_system.update(dt, self)
+        
+        # World update with reality stability
+        self.world.update(dt, self.trust_level, self.reality_system)
+        
+        # Check if AI is currently speaking
+        ai_speaking = self.ai_companion.current_advice is not None
+        
+        # Update enemies with perception (hesitation, stillness, speech)
+        self.enemy_manager.update(
+            dt, 
+            self.player, 
+            self.trust_level, 
+            self.behavior_state,
+            ai_speaking
+        )
+        
         self.ai_companion.update(dt, self)
+        
+        # Update behavior profiler (feeds all adaptive systems)
+        self.behavior_state.update(dt, self.player, self.enemy_manager, self.game_time)
         
         # Check for ending conditions
         self._check_ending_conditions()
@@ -74,11 +102,17 @@ class GameState:
         self.trust_level = min(1.0, self.trust_level + 0.05)
         self.record_action("advice_followed", {"trust_level": self.trust_level})
         
+        # Notify behavior profiler
+        self.behavior_state.on_advice_followed(self.game_time)
+        
     def ignore_advice(self):
         """Player ignored AI advice"""
         self.advice_ignored += 1
         self.trust_level = max(0.0, self.trust_level - 0.05)
         self.record_action("advice_ignored", {"trust_level": self.trust_level})
+        
+        # Notify behavior profiler
+        self.behavior_state.on_advice_ignored(self.game_time)
         
     def _adjust_difficulty(self):
         """Adjust game difficulty based on trust level"""
@@ -141,7 +175,9 @@ class GameState:
             "final_trust": self.trust_level,
             "advice_followed": self.advice_followed,
             "advice_ignored": self.advice_ignored,
-            "actions": self.playthrough_actions
+            "actions": self.playthrough_actions,
+            "behavior_profile": self.behavior_state.get_state_dict(),
+            "ai_intent_history": self.ai_companion.intent_history
         }
         
         # Save as latest playthrough (will be loaded next time)

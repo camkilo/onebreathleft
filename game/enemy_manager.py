@@ -1,13 +1,21 @@
 """
 Enemy Manager
-Handles abstract enemies that adapt to player behavior
+Handles abstract enemies that adapt to player behavior.
+Enemies now react to hesitation, movement speed, and AI speech.
 """
 
 import random
 import math
 
+
+# Enemy perception constants
+STILLNESS_MOVEMENT_THRESHOLD = 5  # Movement below this is considered standing still
+STILLNESS_DETECTION_TIME = 2.0  # Seconds before stillness attracts attention
+SPEECH_ATTRACTION_DURATION = 3.0  # Seconds speech affects detection
+
+
 class Enemy:
-    """Abstract enemy entity"""
+    """Abstract enemy entity with perception-based behavior"""
     
     def __init__(self, x, y, enemy_type):
         """Initialize enemy"""
@@ -27,19 +35,85 @@ class Enemy:
         self.target_y = y
         self.alert = False
         
-    def update(self, dt, player, trust_level):
-        """Update enemy behavior"""
+        # Perception tracking
+        self.player_last_pos = (x, y)
+        self.player_still_timer = 0.0  # How long player has been still
+        self.attracted_to_stillness = False
+        self.attracted_to_speech = False
+        self.speech_attraction_timer = 0.0
+        
+    def update(self, dt, player, trust_level, behavior_state=None, ai_speaking=False):
+        """
+        Update enemy behavior with perception.
+        
+        Args:
+            dt: Delta time
+            player: Player object
+            trust_level: Current trust level
+            behavior_state: BehaviorState for hesitation tracking
+            ai_speaking: Whether AI is currently giving advice
+        """
         if not self.active:
-            return
+            return False
             
         # Calculate distance to player
         dx = player.x - self.x
         dy = player.y - self.y
         distance = math.sqrt(dx*dx + dy*dy)
         
+        # Detect player movement/stillness
+        player_pos = (player.x, player.y)
+        movement = math.sqrt(
+            (player_pos[0] - self.player_last_pos[0])**2 +
+            (player_pos[1] - self.player_last_pos[1])**2
+        )
+        
+        # Track if player is standing still
+        if movement < STILLNESS_MOVEMENT_THRESHOLD * dt:  # Very little movement
+            self.player_still_timer += dt
+        else:
+            self.player_still_timer = 0.0
+            
+        self.player_last_pos = player_pos
+        
+        # React to player stillness (standing still attracts attention)
+        if self.player_still_timer > STILLNESS_DETECTION_TIME:
+            self.attracted_to_stillness = True
+            # Increase detection radius when player is still
+            stillness_bonus = min(1.5, 1.0 + self.player_still_timer * 0.1)
+        else:
+            self.attracted_to_stillness = False
+            stillness_bonus = 1.0
+        
+        # React to AI speech (listening feels risky)
+        if ai_speaking:
+            self.attracted_to_speech = True
+            self.speech_attraction_timer = SPEECH_ATTRACTION_DURATION
+        
+        if self.speech_attraction_timer > 0:
+            self.speech_attraction_timer -= dt
+            speech_bonus = 1.3  # Significantly easier to detect while listening
+        else:
+            self.attracted_to_speech = False
+            speech_bonus = 1.0
+        
+        # React to player hesitation
+        hesitation_bonus = 1.0
+        if behavior_state:
+            # High hesitation = easier to detect (indecision attracts attention)
+            hesitation_bonus = 1.0 + behavior_state.hesitation_score * 0.3
+        
         # Detection based on trust level (low trust = easier detection)
         detection_mod = 1.5 - trust_level
-        effective_radius = self.detection_radius * detection_mod
+        
+        # Combine all perception factors
+        effective_radius = (
+            self.detection_radius * 
+            detection_mod * 
+            stillness_bonus * 
+            speech_bonus * 
+            hesitation_bonus
+        )
         
         # Check if player is detected
         if distance < effective_radius:
@@ -50,9 +124,16 @@ class Enemy:
                 if distance > 0:
                     dx /= distance
                     dy /= distance
+                
+                # Speed boost when attracted to stillness or speech
+                speed_mod = 1.0
+                if self.attracted_to_stillness:
+                    speed_mod = 1.2
+                if self.attracted_to_speech:
+                    speed_mod = 1.3
                     
-                self.x += dx * self.speed * dt * self.aggression
-                self.y += dy * self.speed * dt * self.aggression
+                self.x += dx * self.speed * dt * self.aggression * speed_mod
+                self.y += dy * self.speed * dt * self.aggression * speed_mod
         else:
             self.alert = False
             # Wander
@@ -76,8 +157,17 @@ class EnemyManager:
         self.difficulty_modifier = 1.0
         self.max_enemies = 5
         
-    def update(self, dt, player, trust_level):
-        """Update all enemies"""
+    def update(self, dt, player, trust_level, behavior_state=None, ai_speaking=False):
+        """
+        Update all enemies with perception-based behavior.
+        
+        Args:
+            dt: Delta time
+            player: Player object
+            trust_level: Current trust level
+            behavior_state: BehaviorState for hesitation tracking
+            ai_speaking: Whether AI is currently giving advice
+        """
         self.spawn_timer += dt
         
         # Spawn new enemies periodically
@@ -88,7 +178,7 @@ class EnemyManager:
         # Update existing enemies
         enemies_to_remove = []
         for enemy in self.enemies:
-            attacked = enemy.update(dt, player, trust_level)
+            attacked = enemy.update(dt, player, trust_level, behavior_state, ai_speaking)
             if attacked:
                 # Enemy hit player
                 damage = 10 * self.difficulty_modifier
