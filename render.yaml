@@ -1,6 +1,7 @@
 services:
   - type: web
     name: onebreathleft
+    runtime: python-3.11.0
     env: python
     buildCommand: pip install -r requirements-web.txt
     startCommand: gunicorn app:app
