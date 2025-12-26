@@ -1,6 +1,6 @@
 """
 World class
-Handles the foggy, minimal world environment
+Handles the foggy, minimal world environment with soft boundaries
 """
 
 import random
@@ -16,6 +16,12 @@ class World:
         
         # World state affected by trust
         self.hostility = 0.5  # How hostile the environment is
+        
+        # Soft boundaries (no hard walls)
+        self.world_center_x = 400
+        self.world_center_y = 300
+        self.soft_boundary_radius = 600  # Distance where effects start
+        self.max_boundary_radius = 800  # Absolute limit
         
         # Exploration zones
         self.zones = []
@@ -38,6 +44,52 @@ class World:
                 "type": random.choice(["safe", "dangerous", "mysterious"])
             }
             self.zones.append(zone)
+    
+    def get_boundary_effect(self, player_x, player_y):
+        """
+        Calculate boundary effects based on distance from center.
+        Returns (control_lag, zoom_factor, sound_muffle)
+        """
+        dx = player_x - self.world_center_x
+        dy = player_y - self.world_center_y
+        distance = math.sqrt(dx*dx + dy*dy)
+        
+        if distance < self.soft_boundary_radius:
+            # No effect inside safe zone
+            return 0.0, 1.0, 0.0
+        elif distance < self.max_boundary_radius:
+            # Gradual effects in soft boundary zone
+            t = (distance - self.soft_boundary_radius) / (self.max_boundary_radius - self.soft_boundary_radius)
+            control_lag = t * 0.7  # 0 to 0.7 lag multiplier
+            zoom_factor = 1.0 - t * 0.15  # Slight zoom in (1.0 to 0.85)
+            sound_muffle = t  # 0 to 1 muffle effect
+            return control_lag, zoom_factor, sound_muffle
+        else:
+            # At or beyond max boundary - strong effects
+            return 0.8, 0.8, 1.0
+            
+    def push_player_from_boundary(self, player_x, player_y, dt):
+        """
+        Gently push player back if they're too far from center.
+        Returns (push_x, push_y) force to apply.
+        """
+        dx = player_x - self.world_center_x
+        dy = player_y - self.world_center_y
+        distance = math.sqrt(dx*dx + dy*dy)
+        
+        if distance > self.soft_boundary_radius:
+            # Calculate push force towards center
+            t = (distance - self.soft_boundary_radius) / (self.max_boundary_radius - self.soft_boundary_radius)
+            t = min(1.0, t)
+            
+            # Normalize direction towards center
+            push_strength = t * 50 * dt  # Stronger push as they get further
+            if distance > 0:
+                push_x = -(dx / distance) * push_strength
+                push_y = -(dy / distance) * push_strength
+                return push_x, push_y
+        
+        return 0, 0
             
     def update(self, dt, trust_level, reality_system=None):
         """Update world state based on trust level and reality stability"""

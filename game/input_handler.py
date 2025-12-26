@@ -1,12 +1,13 @@
 """
 Input Handler
-Processes player input and controls
+Processes player input and controls with soft boundary effects
 """
 
 import pygame
+import math
 
 class InputHandler:
-    """Handles keyboard and mouse input"""
+    """Handles keyboard and mouse input with boundary awareness"""
     
     def __init__(self):
         """Initialize input handler"""
@@ -30,8 +31,9 @@ class InputHandler:
                 self.keys_pressed.remove(event.key)
                 
     def update(self, game_state, dt):
-        """Update game state based on input"""
+        """Update game state based on input with soft boundary effects"""
         player = game_state.player
+        world = game_state.world
         
         # Movement
         direction_x = 0
@@ -49,9 +51,15 @@ class InputHandler:
         # Running
         player.is_running = pygame.K_LSHIFT in self.keys_pressed or pygame.K_RSHIFT in self.keys_pressed
         
-        # Apply movement
+        # Get boundary effects
+        control_lag, zoom_factor, sound_muffle = world.get_boundary_effect(player.x, player.y)
+        
+        # Apply movement with control lag at boundaries
         if direction_x != 0 or direction_y != 0:
-            player.move(direction_x, direction_y)
+            # Reduce responsiveness near boundaries
+            lag_factor = 1.0 - control_lag
+            player.move(direction_x * lag_factor, direction_y * lag_factor)
+            
             game_state.record_action("move", {
                 "x": player.x,
                 "y": player.y,
@@ -59,6 +67,11 @@ class InputHandler:
             })
         else:
             player.stop()
+        
+        # Apply gentle push back from boundaries
+        push_x, push_y = world.push_player_from_boundary(player.x, player.y, dt)
+        player.x += push_x
+        player.y += push_y
             
         # Check for zone exploration
         zone_type = game_state.world.check_zone_exploration(player.x, player.y)

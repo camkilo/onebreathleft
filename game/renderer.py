@@ -116,6 +116,9 @@ class Renderer:
         """Update cinematic camera effects"""
         player = game_state.player
         
+        # Get boundary effects for zoom
+        _, zoom_factor, _ = game_state.world.get_boundary_effect(player.x, player.y)
+        
         # Camera drag (player slightly off-center based on movement)
         target_offset_x = -player.velocity_x * 0.05
         target_offset_y = -player.velocity_y * 0.05
@@ -134,10 +137,12 @@ class Renderer:
                 self.camera_shake_intensity = max(self.camera_shake_intensity, 
                                                   (100 - distance) / 100 * 2)
         
-        # Calculate vignette pulse based on danger and trust
+        # Calculate vignette pulse based on danger, trust, and boundary proximity
         danger_level = min(player.fear / 100.0, 1.0)
         enemy_count = len(game_state.enemy_manager.enemies)
-        base_pulse = danger_level * 0.3 + enemy_count * 0.05
+        boundary_effect = 1.0 - zoom_factor  # More vignette near boundaries
+        
+        base_pulse = danger_level * 0.3 + enemy_count * 0.05 + boundary_effect * 0.2
         
         # Pulse with breathing pattern
         pulse_wave = math.sin(self.time_accumulator * 2) * 0.5 + 0.5
