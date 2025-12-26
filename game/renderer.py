@@ -6,10 +6,13 @@ Handles all game rendering with cinematic, psychological horror aesthetic
 import pygame
 import math
 import random
-import time
 
 class Renderer:
     """Renders the game with a cinematic, psychological horror aesthetic"""
+    
+    # Visual effect constants
+    FILM_GRAIN_ALPHA = 15  # 1-2% opacity for film grain
+    CHOICE_EXPANSION_DURATION = 5.0  # Seconds to show light expansion after choice
     
     def __init__(self, screen, width, height):
         """Initialize renderer"""
@@ -49,7 +52,7 @@ class Renderer:
         self.vignette_pulse = 0
         self.noise_offset_x = 0
         self.noise_offset_y = 0
-        self.film_grain_alpha = 15  # 1-2% opacity
+        self.film_grain_alpha = self.FILM_GRAIN_ALPHA
         
         # Enemy rendering state (for delayed rendering)
         self.enemy_render_buffer = []
@@ -283,7 +286,7 @@ class Renderer:
         
         # Expand briefly when making independent choices
         choice_bonus = 1.0
-        if game_state.advice_ignored > 0 and self.time_accumulator % 5 < 0.5:
+        if game_state.advice_ignored > 0 and self.time_accumulator % self.CHOICE_EXPANSION_DURATION < 0.5:
             choice_bonus = 1.15
         
         visibility = base_visibility * danger_factor * choice_bonus
