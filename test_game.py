@@ -206,6 +206,53 @@ def test_endings():
     print("✓ Ending tests passed")
     return True
 
+def test_behavior_profiler():
+    """Test behavior profiler"""
+    print("\nTesting Behavior Profiler...")
+    from game.behavior_profiler import BehaviorState
+    from game.player import Player
+    from game.enemy_manager import EnemyManager
+    
+    profiler = BehaviorState(window_size=30)
+    player = Player(400, 300)
+    enemy_manager = EnemyManager()
+    
+    # Test initial state
+    assert 0 <= profiler.trust <= 1
+    assert 0 <= profiler.fear <= 1
+    assert 0 <= profiler.independence <= 1
+    
+    # Test advice tracking
+    profiler.on_advice_given(1.0)
+    assert profiler.advice_given_count == 1
+    
+    profiler.on_advice_followed(2.0)
+    assert profiler.advice_followed_count == 1
+    assert len(profiler.reaction_times) == 1
+    assert profiler.reaction_times[0] == 1.0  # 2.0 - 1.0
+    
+    profiler.on_advice_given(5.0)
+    profiler.on_advice_ignored(8.0)
+    assert profiler.advice_ignored_count == 1
+    assert len(profiler.reaction_times) == 2
+    
+    # Test update
+    player.move(1, 0)
+    profiler.update(0.1, player, enemy_manager, 10.0)
+    
+    # Test state serialization
+    state_dict = profiler.get_state_dict()
+    assert 'trust' in state_dict
+    assert 'fear' in state_dict
+    assert 'independence' in state_dict
+    assert 'average_reaction_time' in state_dict
+    assert 'advice_follow_ratio' in state_dict
+    assert 'hesitation_score' in state_dict
+    assert 'risk_tolerance' in state_dict
+    
+    print("✓ Behavior Profiler tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -222,6 +269,7 @@ def main():
         test_web_game_state,
         test_playthrough_recording,
         test_endings,
+        test_behavior_profiler,
     ]
     
     passed = 0

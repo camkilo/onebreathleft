@@ -66,6 +66,10 @@ class AICompanion:
             self.current_advice = self._generate_advice(game_state)
             self.advice_timer = 0
             
+            # Notify behavior profiler that advice was given
+            if hasattr(game_state, 'behavior_state'):
+                game_state.behavior_state.on_advice_given(game_state.game_time)
+            
         # Clear advice after some time
         if self.current_advice and self.advice_timer > 5:
             self.current_advice = None
