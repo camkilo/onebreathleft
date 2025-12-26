@@ -24,6 +24,14 @@ class AIIntent:
 class AICompanion:
     """AI Companion that learns from previous playthrough with intent-based decision making"""
     
+    # Intent honesty modifiers (how likely AI is to be honest in each intent)
+    INTENT_HONESTY_MODIFIERS = {
+        AIIntent.PROTECT: 1.0,   # Always honest when protecting
+        AIIntent.CONTROL: 0.8,   # Mostly honest
+        AIIntent.TEST: 0.5,      # Often misleading
+        AIIntent.CONFESS: 1.0    # Brutally honest
+    }
+    
     def __init__(self):
         """Initialize AI companion"""
         self.previous_playthrough = None
@@ -241,14 +249,7 @@ class AICompanion:
         advice = self._apply_confidence_modifier(advice)
         
         # Intent modifies accuracy (honesty)
-        intent_honesty_modifier = {
-            AIIntent.PROTECT: 1.0,   # Always honest when protecting
-            AIIntent.CONTROL: 0.8,   # Mostly honest
-            AIIntent.TEST: 0.5,      # Often misleading
-            AIIntent.CONFESS: 1.0    # Brutally honest
-        }
-        
-        effective_honesty = self.honesty * intent_honesty_modifier[self.current_intent]
+        effective_honesty = self.honesty * self.INTENT_HONESTY_MODIFIERS[self.current_intent]
         
         # AI might lie based on effective honesty
         if random.random() > effective_honesty:

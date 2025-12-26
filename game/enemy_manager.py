@@ -7,6 +7,13 @@ Enemies now react to hesitation, movement speed, and AI speech.
 import random
 import math
 
+
+# Enemy perception constants
+STILLNESS_MOVEMENT_THRESHOLD = 5  # Movement below this is considered standing still
+STILLNESS_DETECTION_TIME = 2.0  # Seconds before stillness attracts attention
+SPEECH_ATTRACTION_DURATION = 3.0  # Seconds speech affects detection
+
+
 class Enemy:
     """Abstract enemy entity with perception-based behavior"""
     
@@ -62,7 +69,7 @@ class Enemy:
         )
         
         # Track if player is standing still
-        if movement < 5 * dt:  # Very little movement
+        if movement < STILLNESS_MOVEMENT_THRESHOLD * dt:  # Very little movement
             self.player_still_timer += dt
         else:
             self.player_still_timer = 0.0
@@ -70,7 +77,7 @@ class Enemy:
         self.player_last_pos = player_pos
         
         # React to player stillness (standing still attracts attention)
-        if self.player_still_timer > 2.0:
+        if self.player_still_timer > STILLNESS_DETECTION_TIME:
             self.attracted_to_stillness = True
             # Increase detection radius when player is still
             stillness_bonus = min(1.5, 1.0 + self.player_still_timer * 0.1)
@@ -81,7 +88,7 @@ class Enemy:
         # React to AI speech (listening feels risky)
         if ai_speaking:
             self.attracted_to_speech = True
-            self.speech_attraction_timer = 3.0  # Stay attracted for 3 seconds
+            self.speech_attraction_timer = SPEECH_ATTRACTION_DURATION
         
         if self.speech_attraction_timer > 0:
             self.speech_attraction_timer -= dt

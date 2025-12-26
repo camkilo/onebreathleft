@@ -9,10 +9,42 @@ from collections import deque
 import math
 
 
+# Behavior analysis constants
+MICRO_STOP_SPEED_THRESHOLD = 20  # Speed below this is considered stopped
+MICRO_STOP_BEFORE_SPEED = 50  # Speed before stop to detect micro-stop
+MICRO_STOP_AFTER_SPEED = 50  # Speed after stop to detect micro-stop
+MAX_HESITATION_EVENTS = 20.0  # Max events per window for normalization
+
+
 class BehaviorState:
     """
-    Live model tracking player behavior patterns.
-    Updated every frame with sliding window averages.
+    Live model tracking player behavior patterns over time.
+    
+    This class maintains a real-time profile of player behavior using sliding
+    window averages. It tracks multiple dimensions of player behavior:
+    
+    - Reaction time to AI advice
+    - Advice following vs ignoring patterns
+    - Movement patterns (hesitation, backtracking)
+    - Risk-taking behavior (enemy proximity, sprint usage)
+    
+    The profiler outputs three key normalized values (0-1):
+    - trust: How much player trusts AI companion
+    - fear: Current fear/anxiety level
+    - independence: Level of independent decision-making
+    
+    These values feed into all adaptive game systems including AI intent,
+    enemy perception, and reality degradation.
+    
+    Attributes:
+        window_size: Time window in seconds for sliding averages
+        trust: Trust level in AI (0-1)
+        fear: Fear level (0-1)
+        independence: Independence score (0-1)
+        average_reaction_time: Average time to respond to advice
+        advice_follow_ratio: Ratio of advice followed vs ignored
+        hesitation_score: Movement hesitation metric (0-1)
+        risk_tolerance: Risk-taking behavior metric (0-1)
     """
     
     def __init__(self, window_size=60):
@@ -106,7 +138,9 @@ class BehaviorState:
             speeds = [math.sqrt(v[1][0]**2 + v[1][1]**2) for v in recent_vels]
             
             # If speed dropped significantly and then recovered
-            if speeds[1] < 20 and speeds[0] > 50 and speeds[2] > 50:
+            if (speeds[1] < MICRO_STOP_SPEED_THRESHOLD and 
+                speeds[0] > MICRO_STOP_BEFORE_SPEED and 
+                speeds[2] > MICRO_STOP_AFTER_SPEED):
                 self.stop_events.append(self.current_time)
         
         # Detect backtracking (significant direction changes)
@@ -173,9 +207,9 @@ class BehaviorState:
         recent_stops = sum(1 for t in self.stop_events if t > cutoff_time)
         recent_backtracks = sum(1 for t in self.backtrack_events if t > cutoff_time)
         
-        # Normalize to 0-1 range (assume max 20 events per window is very hesitant)
-        stop_score = min(1.0, recent_stops / 20.0)
-        backtrack_score = min(1.0, recent_backtracks / 20.0)
+        # Normalize to 0-1 range (assume max events per window is very hesitant)
+        stop_score = min(1.0, recent_stops / MAX_HESITATION_EVENTS)
+        backtrack_score = min(1.0, recent_backtracks / MAX_HESITATION_EVENTS)
         
         # Combined hesitation score
         self.hesitation_score = (stop_score * 0.5 + backtrack_score * 0.5)

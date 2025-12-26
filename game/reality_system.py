@@ -8,10 +8,45 @@ import math
 import random
 
 
+# Reality degradation constants
+LIE_PENALTY_PER_LIE = 0.05  # Stability reduction per AI lie
+MAX_LIE_PENALTY = 0.5  # Maximum total lie penalty
+DISOBEDIENCE_TIME_DIVISOR = 60.0  # Time in seconds for full disobedience penalty
+MAX_DISOBEDIENCE_PENALTY = 0.3  # Maximum disobedience penalty
+TRUST_BREAKDOWN_TIME_DIVISOR = 120.0  # Time for full breakdown penalty
+MAX_BREAKDOWN_PENALTY = 0.4  # Maximum breakdown penalty
+
+
 class RealitySystem:
     """
     Manages reality stability and environmental degradation.
-    No UI indicators - player feels the changes naturally.
+    
+    This system tracks and responds to player behavior and AI interactions,
+    degrading the game world's stability when trust breaks down or deception
+    occurs. The degradation is subtle and affects multiple aspects:
+    
+    - Visual stability: Fog density, geometry warping, color shifts
+    - Audio stability: Audio desync and distortion
+    - Navigation stability: Movement reliability and drift
+    
+    The system uses three component stability values that feed into various
+    game systems. All effects are designed to be felt by the player without
+    explicit UI indicators.
+    
+    Attributes:
+        stability: Overall reality stability (0-1)
+        visual_stability: Visual rendering stability (0-1)
+        audio_stability: Audio playback stability (0-1)
+        navigation_stability: Movement reliability (0-1)
+        lie_count: Number of times AI has lied
+        disobedience_count: Duration of player disobedience
+        trust_breakdown_duration: Time spent in low trust state
+    
+    Methods:
+        update: Update stability based on game state
+        apply_fog_density_modifier: Modify fog based on stability
+        apply_geometry_warp: Apply visual warping to coordinates
+        apply_movement_unreliability: Add drift to player movement
     """
     
     def __init__(self):
@@ -82,13 +117,15 @@ class RealitySystem:
         trust_factor = game_state.trust_level
         
         # Penalty from lies (each lie reduces stability)
-        lie_penalty = min(0.5, self.lie_count * 0.05)
+        lie_penalty = min(MAX_LIE_PENALTY, self.lie_count * LIE_PENALTY_PER_LIE)
         
         # Penalty from sustained disobedience
-        disobedience_penalty = min(0.3, self.disobedience_count / 60.0)
+        disobedience_penalty = min(MAX_DISOBEDIENCE_PENALTY, 
+                                   self.disobedience_count / DISOBEDIENCE_TIME_DIVISOR)
         
         # Penalty from prolonged low trust
-        breakdown_penalty = min(0.4, self.trust_breakdown_duration / 120.0)
+        breakdown_penalty = min(MAX_BREAKDOWN_PENALTY, 
+                               self.trust_breakdown_duration / TRUST_BREAKDOWN_TIME_DIVISOR)
         
         # Calculate stability (0-1)
         self.stability = max(0.0, min(1.0,
