@@ -155,7 +155,8 @@ class GameState:
             "advice_followed": self.advice_followed,
             "advice_ignored": self.advice_ignored,
             "actions": self.playthrough_actions,
-            "behavior_profile": self.behavior_state.get_state_dict()
+            "behavior_profile": self.behavior_state.get_state_dict(),
+            "ai_intent_history": self.ai_companion.intent_history
         }
         
         # Save as latest playthrough (will be loaded next time)

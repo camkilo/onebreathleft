@@ -253,6 +253,64 @@ def test_behavior_profiler():
     print("✓ Behavior Profiler tests passed")
     return True
 
+def test_ai_intent_system():
+    """Test AI intent system"""
+    print("\nTesting AI Intent System...")
+    from game.ai_companion import AICompanion, AIIntent
+    from game.game_state import GameState
+    
+    state = GameState()
+    ai = state.ai_companion
+    
+    # Test initial intent
+    assert ai.current_intent in [AIIntent.PROTECT, AIIntent.CONTROL, AIIntent.TEST, AIIntent.CONFESS]
+    
+    # Test intent evaluation
+    initial_intent = ai.current_intent
+    ai._evaluate_intent(state)
+    # Intent should be set after evaluation
+    assert ai.current_intent is not None
+    
+    # Test intent weights
+    assert AIIntent.PROTECT in ai.intent_weights
+    assert AIIntent.CONTROL in ai.intent_weights
+    assert AIIntent.TEST in ai.intent_weights
+    assert AIIntent.CONFESS in ai.intent_weights
+    
+    # Test advice generation with intents
+    advice = ai._generate_advice(state)
+    assert 'text' in advice
+    assert 'type' in advice
+    assert 'intent' in advice
+    assert advice['intent'] in [AIIntent.PROTECT, AIIntent.CONTROL, AIIntent.TEST, AIIntent.CONFESS]
+    
+    # Test protective advice
+    state.player.health = 20
+    protective_advice = ai._generate_protective_advice(state)
+    assert 'text' in protective_advice
+    assert len(protective_advice['text']) > 0
+    
+    # Test controlling advice
+    controlling_advice = ai._generate_controlling_advice(state)
+    assert 'text' in controlling_advice
+    
+    # Test testing advice
+    testing_advice = ai._generate_testing_advice(state)
+    assert 'text' in testing_advice
+    
+    # Test confession advice (late game)
+    state.game_time = 300
+    confession_advice = ai._generate_confession_advice(state)
+    assert 'text' in confession_advice
+    
+    # Test confidence modifier
+    ai.confidence = 0.3
+    advice_with_modifier = ai._apply_confidence_modifier({'text': 'Go left', 'type': 'suggestion'})
+    assert 'text' in advice_with_modifier
+    
+    print("✓ AI Intent System tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -270,6 +328,7 @@ def main():
         test_playthrough_recording,
         test_endings,
         test_behavior_profiler,
+        test_ai_intent_system,
     ]
     
     passed = 0
