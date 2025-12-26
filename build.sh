@@ -11,7 +11,7 @@ set -e  # Exit on error
 
 echo "Installing SDL2 dependencies..."
 apt-get update
-apt-get install -y \
+apt-get install -y --no-install-recommends \
     libsdl2-dev \
     libsdl2-image-dev \
     libsdl2-mixer-dev \
