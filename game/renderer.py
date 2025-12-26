@@ -340,10 +340,6 @@ class Renderer:
                                      (center_x, center_y), int(ripple_radius + 10), 1)
                 
                 self.screen.blit(ripple_surface, (0, 0))
-        fog_surface.fill((fog_r, fog_g, fog_b))
-        
-        fog_surface.set_alpha(darkness)
-        self.screen.blit(fog_surface, (0, 0))
         
     def _render_zones(self, game_state):
         """Render exploration zones as light scars and floating geometry"""
