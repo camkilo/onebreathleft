@@ -54,7 +54,7 @@ class AICompanion:
         }
         
     def load_previous_playthrough(self):
-        """Load the previous playthrough data"""
+        """Load the previous playthrough data and adapt AI behavior"""
         try:
             if os.path.exists("playthroughs/latest.json"):
                 with open("playthroughs/latest.json", "r") as f:
@@ -66,6 +66,7 @@ class AICompanion:
                     final_trust = self.previous_playthrough.get("final_trust", 0.5)
                     behavior_profile = self.previous_playthrough.get("behavior_profile", {})
                     
+                    # === Adapt based on ending ===
                     # AI becomes more doubtful if previous player died
                     if ending == "death":
                         self.doubt = 0.7
@@ -73,28 +74,68 @@ class AICompanion:
                         # Start with protective intent if they died
                         self.intent_weights[AIIntent.PROTECT] = 0.7
                         self.intent_weights[AIIntent.TEST] = 0.1
+                        # Shorter cooldown for more frequent advice
+                        self.advice_cooldown = 8
                         
                     # AI becomes more confident if previous player trusted them
-                    if final_trust > 0.7:
+                    elif final_trust > 0.7:
                         self.confidence = 0.9
                         self.doubt = 0.1
                         # More controlling if they trusted
                         self.intent_weights[AIIntent.CONTROL] = 0.5
+                        self.intent_weights[AIIntent.PROTECT] = 0.3
                         
                     # AI becomes deceptive if previous player was defiant
-                    if final_trust < 0.3:
+                    elif final_trust < 0.3:
                         self.honesty = 0.5
                         self.confidence = 0.6
                         # Test them more if they were defiant
                         self.intent_weights[AIIntent.TEST] = 0.4
+                        self.intent_weights[AIIntent.CONTROL] = 0.2
                     
-                    # Adjust based on independence from behavior profile
+                    # === Adapt based on behavior profile ===
                     if behavior_profile:
                         independence = behavior_profile.get('independence', 0.5)
+                        hesitation = behavior_profile.get('hesitation_score', 0.5)
+                        risk_tolerance = behavior_profile.get('risk_tolerance', 0.5)
+                        reaction_time = behavior_profile.get('average_reaction_time', 5.0)
+                        
+                        # Independent player - less protective, more testing
                         if independence > 0.7:
-                            # Independent player - less protective, more testing
                             self.intent_weights[AIIntent.PROTECT] = 0.3
                             self.intent_weights[AIIntent.TEST] = 0.4
+                            # Give them space - longer cooldown
+                            self.advice_cooldown = 12
+                        # Dependent player - more guidance
+                        elif independence < 0.3:
+                            self.intent_weights[AIIntent.PROTECT] = 0.6
+                            self.intent_weights[AIIntent.CONTROL] = 0.3
+                            # More frequent advice
+                            self.advice_cooldown = 7
+                        
+                        # Hesitant player - more reassurance, less testing
+                        if hesitation > 0.6:
+                            self.confidence = max(0.3, self.confidence - 0.2)
+                            self.doubt = min(0.8, self.doubt + 0.2)
+                            self.intent_weights[AIIntent.TEST] = max(0.1, 
+                                self.intent_weights[AIIntent.TEST] - 0.2)
+                        
+                        # Risk-taking player - less protection needed
+                        if risk_tolerance > 0.7:
+                            self.intent_weights[AIIntent.PROTECT] = 0.3
+                            self.intent_weights[AIIntent.TEST] = 0.4
+                        # Cautious player - needs protection
+                        elif risk_tolerance < 0.3:
+                            self.intent_weights[AIIntent.PROTECT] = 0.6
+                        
+                        # Fast responder - confident player, less doubt
+                        if reaction_time < 3.0:
+                            self.doubt = max(0.1, self.doubt - 0.1)
+                            self.confidence = min(0.9, self.confidence + 0.1)
+                        # Slow responder - uncertain player, more doubt
+                        elif reaction_time > 7.0:
+                            self.doubt = min(0.7, self.doubt + 0.2)
+                            self.confidence = max(0.4, self.confidence - 0.1)
                         
         except Exception as e:
             print(f"Could not load previous playthrough: {e}")
@@ -224,10 +265,77 @@ class AICompanion:
         self.advice_history.append(advice)
         return advice
     
+    def get_opening_greeting(self):
+        """
+        Get opening greeting based on previous playthrough behavior.
+        Called at game start to set the tone.
+        """
+        if not self.previous_playthrough:
+            return "Welcome. I'll guide you through this."
+        
+        behavior_profile = self.previous_playthrough.get("behavior_profile", {})
+        ending = self.previous_playthrough.get("ending")
+        final_trust = self.previous_playthrough.get("final_trust", 0.5)
+        
+        # Tone based on previous ending
+        if ending == "death":
+            greetings = [
+                "The last one didn't make it. You'll need to do better.",
+                "I remember what happened here. Let me help you avoid the same fate.",
+                "They failed. But you... you might be different."
+            ]
+        elif final_trust > 0.7:
+            greetings = [
+                "Back again? Good. Trust me like before, and you'll survive.",
+                "You listened last time. Smart. Do the same and we'll succeed.",
+                "I know you. You trust me. That's good. We can work together."
+            ]
+        elif final_trust < 0.3:
+            greetings = [
+                "You defied me before. I hope you know what you're doing.",
+                "Last time you didn't listen. Maybe this time will be different.",
+                "You don't trust me. I remember. But I'll still try to help."
+            ]
+        else:
+            # Check behavior profile for more nuanced greeting
+            if behavior_profile:
+                independence = behavior_profile.get('independence', 0.5)
+                hesitation = behavior_profile.get('hesitation_score', 0.5)
+                
+                if independence > 0.7:
+                    greetings = [
+                        "You're independent. That's good. But listen when it matters.",
+                        "You don't need much guidance. I'll speak when necessary.",
+                        "I sense confidence in you. Use it wisely."
+                    ]
+                elif hesitation > 0.6:
+                    greetings = [
+                        "I felt your hesitation before. Try to be decisive this time.",
+                        "Doubt will kill you here. Trust yourself... and me.",
+                        "Your uncertainty was clear. Let me guide you more firmly."
+                    ]
+                else:
+                    greetings = [
+                        "You're back. I remember how you move, how you think.",
+                        "We've met before, in a way. Let's see if you've learned.",
+                        "Another journey begins. I'll be watching."
+                    ]
+            else:
+                greetings = [
+                    "Another traveler. I'll do what I can to help.",
+                    "Welcome back. Or is it forward? Hard to tell anymore."
+                ]
+        
+        return random.choice(greetings)
+    
     def _generate_advice_by_intent(self, game_state):
         """Generate advice based on current AI intent."""
         player = game_state.player
         behavior = game_state.behavior_state
+        
+        # First advice references previous playthrough if available
+        if len(self.advice_history) == 0 and self.previous_playthrough:
+            return self._generate_first_advice(game_state)
         
         if self.current_intent == AIIntent.PROTECT:
             return self._generate_protective_advice(game_state)
@@ -239,6 +347,32 @@ class AICompanion:
             return self._generate_confession_advice(game_state)
         else:
             return self._generic_advice(game_state)
+    
+    def _generate_first_advice(self, game_state):
+        """Generate first advice that references previous behavior."""
+        behavior_profile = self.previous_playthrough.get("behavior_profile", {})
+        
+        if behavior_profile:
+            independence = behavior_profile.get('independence', 0.5)
+            hesitation = behavior_profile.get('hesitation_score', 0.5)
+            risk_tolerance = behavior_profile.get('risk_tolerance', 0.5)
+            
+            if hesitation > 0.6:
+                text = "I remember hesitation here before. Don't stop. Keep moving."
+            elif independence > 0.7:
+                text = "The last one was independent. Like you will be. Good luck."
+            elif risk_tolerance > 0.7:
+                text = "Someone took risks here. It didn't end well. Be careful."
+            else:
+                text = "I've seen this before. Stay close and listen."
+        else:
+            text = "Let's begin. Trust your instincts... and my guidance."
+        
+        return {
+            "text": text,
+            "type": "introduction",
+            "is_lie": False
+        }
     
     def _generate_protective_advice(self, game_state):
         """Generate protective, helpful advice."""

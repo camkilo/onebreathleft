@@ -411,6 +411,71 @@ def test_perception_based_enemies():
     print("✓ Perception-Based Enemies tests passed")
     return True
 
+def test_cross_playthrough_memory():
+    """Test cross-playthrough memory and AI adaptation"""
+    print("\nTesting Cross-Playthrough Memory...")
+    import json
+    import os
+    from game.ai_companion import AICompanion, AIIntent
+    from game.game_state import GameState
+    
+    # Create a mock previous playthrough
+    os.makedirs("playthroughs", exist_ok=True)
+    mock_playthrough = {
+        "ending": "death",
+        "final_trust": 0.3,
+        "behavior_profile": {
+            "independence": 0.3,  # More dependent player
+            "hesitation_score": 0.6,
+            "risk_tolerance": 0.4,
+            "average_reaction_time": 6.0,
+            "advice_follow_ratio": 0.4
+        },
+        "actions": []
+    }
+    
+    with open("playthroughs/latest.json", "w") as f:
+        json.dump(mock_playthrough, f)
+    
+    # Create new AI and load previous playthrough
+    ai = AICompanion()
+    ai.load_previous_playthrough()
+    
+    # Test that AI adapted to death ending
+    assert ai.doubt > 0.5  # Should be more doubtful
+    # Protection intent should be prioritized (may be adjusted by behavior)
+    assert ai.intent_weights[AIIntent.PROTECT] > 0.4
+    
+    # Test opening greeting references previous behavior
+    greeting = ai.get_opening_greeting()
+    assert isinstance(greeting, str)
+    assert len(greeting) > 0
+    
+    # Test that AI adapted to behavior profile
+    # Dependent + hesitant player should get more guidance
+    assert ai.intent_weights[AIIntent.PROTECT] > 0.4
+    
+    # Test with high trust previous playthrough
+    mock_playthrough["final_trust"] = 0.9
+    mock_playthrough["ending"] = "trust"
+    with open("playthroughs/latest.json", "w") as f:
+        json.dump(mock_playthrough, f)
+    
+    ai2 = AICompanion()
+    ai2.load_previous_playthrough()
+    
+    # Should be more confident and controlling
+    assert ai2.confidence > 0.7
+    assert ai2.doubt < 0.3
+    assert ai2.intent_weights[AIIntent.CONTROL] > 0.4
+    
+    # Clean up
+    if os.path.exists("playthroughs/latest.json"):
+        os.remove("playthroughs/latest.json")
+    
+    print("✓ Cross-Playthrough Memory tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -431,6 +496,7 @@ def main():
         test_ai_intent_system,
         test_reality_system,
         test_perception_based_enemies,
+        test_cross_playthrough_memory,
     ]
     
     passed = 0
