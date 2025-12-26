@@ -42,7 +42,7 @@ Render is recommended for this game because it supports Python web services nati
      - **Name**: onebreathleft (or your choice)
      - **Environment**: Python 3
      - **Build Command**: `pip install -r requirements-web.txt`
-     - **Start Command**: `gunicorn app:app`
+     - **Start Command**: `gunicorn --bind 0.0.0.0:$PORT app:app`
      - **Instance Type**: Free
 
 5. **Add Environment Variable**
@@ -163,6 +163,12 @@ After deployment, verify these features:
 8. **Persistence**: Second playthrough loads previous data
 
 ## Troubleshooting
+
+### 404 Error / Application Not Found
+- Ensure start command binds to `0.0.0.0:$PORT`: `gunicorn --bind 0.0.0.0:$PORT app:app`
+- Render requires apps to bind to the PORT environment variable
+- Check deployment logs for binding errors
+- Verify the service is listening on the correct port
 
 ### "Module not found" errors
 - Check `requirements-web.txt` is complete
