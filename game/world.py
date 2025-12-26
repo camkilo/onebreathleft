@@ -39,14 +39,18 @@ class World:
             }
             self.zones.append(zone)
             
-    def update(self, dt, trust_level):
-        """Update world state based on trust level"""
+    def update(self, dt, trust_level, reality_system=None):
+        """Update world state based on trust level and reality stability"""
         # High trust = clearer world, less hostile
         # Low trust = foggier, more hostile
         
         target_fog = 0.9 - (trust_level * 0.4)  # 0.5-0.9 range
         target_darkness = 0.8 - (trust_level * 0.4)  # 0.4-0.8 range
         target_hostility = 0.8 - (trust_level * 0.6)  # 0.2-0.8 range
+        
+        # Apply reality system fog modifier if available
+        if reality_system:
+            target_fog = reality_system.apply_fog_density_modifier(target_fog)
         
         # Smoothly transition
         self.fog_density += (target_fog - self.fog_density) * dt * 0.5

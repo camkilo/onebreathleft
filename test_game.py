@@ -311,6 +311,59 @@ def test_ai_intent_system():
     print("✓ AI Intent System tests passed")
     return True
 
+def test_reality_system():
+    """Test reality degradation system"""
+    print("\nTesting Reality System...")
+    from game.reality_system import RealitySystem
+    from game.game_state import GameState
+    
+    state = GameState()
+    reality = state.reality_system
+    
+    # Test initial state
+    assert reality.stability == 1.0
+    assert reality.visual_stability == 1.0
+    assert reality.audio_stability == 1.0
+    assert reality.navigation_stability == 1.0
+    
+    # Test update
+    reality.update(0.1, state)
+    assert reality.stability >= 0.0 and reality.stability <= 1.0
+    
+    # Test fog density modifier
+    base_fog = 0.5
+    modified_fog = reality.apply_fog_density_modifier(base_fog)
+    assert modified_fog >= base_fog  # Should increase fog
+    
+    # Test geometry warp
+    x, y = 100, 100
+    warped_x, warped_y = reality.apply_geometry_warp(x, y, 1.0)
+    assert isinstance(warped_x, (int, float))
+    assert isinstance(warped_y, (int, float))
+    
+    # Test movement unreliability
+    vx, vy = 100, 0
+    modified_vx, modified_vy = reality.apply_movement_unreliability(vx, vy)
+    assert isinstance(modified_vx, (int, float))
+    assert isinstance(modified_vy, (int, float))
+    
+    # Test with low trust (should degrade reality)
+    state.trust_level = 0.2
+    state.game_time = 60
+    reality.update(10.0, state)
+    assert reality.stability < 1.0  # Should degrade
+    
+    # Test state serialization
+    state_dict = reality.get_state_dict()
+    assert 'stability' in state_dict
+    assert 'visual_stability' in state_dict
+    assert 'audio_stability' in state_dict
+    assert 'navigation_stability' in state_dict
+    assert 'lie_count' in state_dict
+    
+    print("✓ Reality System tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -329,6 +382,7 @@ def main():
         test_endings,
         test_behavior_profiler,
         test_ai_intent_system,
+        test_reality_system,
     ]
     
     passed = 0

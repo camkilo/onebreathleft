@@ -11,6 +11,7 @@ from game.world import World
 from game.ai_companion import AICompanion
 from game.enemy_manager import EnemyManager
 from game.behavior_profiler import BehaviorState
+from game.reality_system import RealitySystem
 
 class GameState:
     """Main game state manager"""
@@ -27,6 +28,9 @@ class GameState:
         
         # Behavior profiler (tracks how player behaves)
         self.behavior_state = BehaviorState()
+        
+        # Reality system (environmental degradation)
+        self.reality_system = RealitySystem()
         
         # Game state
         self.game_time = 0
@@ -52,7 +56,13 @@ class GameState:
         
         # Update subsystems
         self.player.update(dt)
-        self.world.update(dt, self.trust_level)
+        
+        # Update reality system (affects world rendering and behavior)
+        self.reality_system.update(dt, self)
+        
+        # World update with reality stability
+        self.world.update(dt, self.trust_level, self.reality_system)
+        
         self.enemy_manager.update(dt, self.player, self.trust_level)
         self.ai_companion.update(dt, self)
         
