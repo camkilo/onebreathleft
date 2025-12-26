@@ -1,0 +1,92 @@
+{
+  "timestamp": 1703548800,
+  "duration": 245.5,
+  "ending": "death",
+  "final_trust": 0.35,
+  "advice_followed": 8,
+  "advice_ignored": 15,
+  "actions": [
+    {
+      "time": 10.2,
+      "type": "move",
+      "data": {
+        "x": 450,
+        "y": 320,
+        "running": false
+      },
+      "trust_level": 0.5
+    },
+    {
+      "time": 25.7,
+      "type": "advice_ignored",
+      "data": {
+        "trust_level": 0.45
+      },
+      "trust_level": 0.45
+    },
+    {
+      "time": 42.3,
+      "type": "zone_explored",
+      "data": {
+        "type": "dangerous"
+      },
+      "trust_level": 0.43
+    },
+    {
+      "time": 58.9,
+      "type": "advice_ignored",
+      "data": {
+        "trust_level": 0.38
+      },
+      "trust_level": 0.38
+    },
+    {
+      "time": 95.2,
+      "type": "advice_followed",
+      "data": {
+        "trust_level": 0.43
+      },
+      "trust_level": 0.43
+    },
+    {
+      "time": 112.5,
+      "type": "zone_explored",
+      "data": {
+        "type": "safe"
+      },
+      "trust_level": 0.43
+    },
+    {
+      "time": 145.8,
+      "type": "advice_ignored",
+      "data": {
+        "trust_level": 0.38
+      },
+      "trust_level": 0.38
+    },
+    {
+      "time": 178.3,
+      "type": "advice_ignored",
+      "data": {
+        "trust_level": 0.33
+      },
+      "trust_level": 0.33
+    },
+    {
+      "time": 210.7,
+      "type": "zone_explored",
+      "data": {
+        "type": "mysterious"
+      },
+      "trust_level": 0.33
+    },
+    {
+      "time": 235.2,
+      "type": "advice_ignored",
+      "data": {
+        "trust_level": 0.28
+      },
+      "trust_level": 0.28
+    }
+  ]
+}

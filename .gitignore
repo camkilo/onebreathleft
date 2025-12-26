@@ -13,5 +13,20 @@ env/
 .venv/
 *.log
 .DS_Store
-playthroughs/
+
+# Game-specific
+playthroughs/*.json
+!playthroughs/example.json
+!playthroughs/README.md
 saves/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
