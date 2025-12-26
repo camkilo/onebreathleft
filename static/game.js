@@ -200,7 +200,7 @@ function updateUI() {
     document.getElementById('staminaBar').style.width = (player.stamina / player.max_stamina * 100) + '%';
     
     document.getElementById('fearText').textContent = Math.floor(player.fear);
-    document.getElementById('fearBar').style.width = (player.fear / 100 * 100) + '%';
+    document.getElementById('fearBar').style.width = player.fear + '%';
     
     // Update trust and time
     document.getElementById('trustText').textContent = Math.floor(game.trust_level * 100);

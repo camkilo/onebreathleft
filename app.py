@@ -20,7 +20,11 @@ app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
 CORS(app)
 
 # Store active game sessions in memory
-# In production, use Redis or similar
+# WARNING: In-memory storage has limitations:
+# - Sessions lost on server restart
+# - Does not scale across multiple server instances
+# - Not suitable for production with high traffic
+# For production, use Redis or a database for session storage
 game_sessions = {}
 
 @app.route('/')
