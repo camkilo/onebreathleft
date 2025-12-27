@@ -50,6 +50,9 @@ class Player:
         self.movement_lerp_t = 0
         self.last_direction_change_time = 0
         
+        # Damage callback (to be set by game state)
+        self.on_damage_callback = None
+        
     def update(self, dt, time_dilation=1.0):
         """Update player state with optional time dilation"""
         # Apply time dilation (selective time skew)
@@ -120,9 +123,13 @@ class Player:
         self.target_velocity_y = 0
         
     def take_damage(self, amount):
-        """Take damage"""
+        """Take damage and trigger callback"""
         self.health = max(0, self.health - amount)
         self.fear = min(100, self.fear + amount * 0.5)
+        
+        # Notify pressure system of interaction
+        if self.on_damage_callback:
+            self.on_damage_callback()
         
     def increase_fear(self, amount):
         """Increase fear level"""

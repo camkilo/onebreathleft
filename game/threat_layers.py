@@ -7,6 +7,11 @@ Each layer creates different types of pressure without requiring more enemies.
 import random
 import math
 
+# Screen and spawning constants for forced edge spawns
+DEFAULT_SCREEN_WIDTH = 800
+DEFAULT_SCREEN_HEIGHT = 600
+FORCED_SPAWN_EDGE_DISTANCE = 400  # Distance from player to spawn at edge
+
 
 class Hunter:
     """
@@ -335,6 +340,43 @@ class ThreatLayerManager:
     def get_field_effects(self):
         """Get active corruption field effects"""
         return self.active_field_effects if self.active_field_effects else None
+    
+    def spawn_forced_threat_at_edge(self, player, screen_width=None, screen_height=None):
+        """
+        CRITICAL RULE: Spawn a threat at screen edge moving inward.
+        Called when nothing has interacted with the player in 5 seconds.
+        
+        Args:
+            player: Player object
+            screen_width: Optional screen width (defaults to 800)
+            screen_height: Optional screen height (defaults to 600)
+        """
+        # Use provided dimensions or defaults
+        screen_width = screen_width or DEFAULT_SCREEN_WIDTH
+        screen_height = screen_height or DEFAULT_SCREEN_HEIGHT
+        
+        # Choose a random edge (top, bottom, left, right)
+        edge = random.choice(['top', 'bottom', 'left', 'right'])
+        
+        # Calculate spawn position at edge
+        if edge == 'top':
+            x = player.x + random.uniform(-screen_width/2, screen_width/2)
+            y = player.y - FORCED_SPAWN_EDGE_DISTANCE
+        elif edge == 'bottom':
+            x = player.x + random.uniform(-screen_width/2, screen_width/2)
+            y = player.y + FORCED_SPAWN_EDGE_DISTANCE
+        elif edge == 'left':
+            x = player.x - FORCED_SPAWN_EDGE_DISTANCE
+            y = player.y + random.uniform(-screen_height/2, screen_height/2)
+        else:  # right
+            x = player.x + FORCED_SPAWN_EDGE_DISTANCE
+            y = player.y + random.uniform(-screen_height/2, screen_height/2)
+        
+        # Spawn a hunter (aggressive threat that moves toward player)
+        hunter = Hunter(x, y)
+        self.hunters.append(hunter)
+        
+        return True  # Signal that forced spawn occurred
     
     def clear_all_threats(self):
         """Remove all threats"""

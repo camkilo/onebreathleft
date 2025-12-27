@@ -678,6 +678,65 @@ def test_countdown_system():
     print("✓ Countdown System tests passed")
     return True
 
+def test_forced_spawn_mechanism():
+    """Test the 5-second forced spawn rule"""
+    print("\nTesting Forced Spawn Mechanism...")
+    from game.game_state import GameState
+    from game.pressure_spawning import PressureSpawningSystem
+    from game.threat_layers import ThreatLayerManager
+    from game.player import Player
+    
+    # Test initial spawn (should have enemies within 3 seconds)
+    state = GameState()
+    
+    # Check that enemies were spawned at initialization
+    initial_threat_count = state.threat_manager.get_total_threat_count()
+    initial_enemy_count = len(state.enemy_manager.enemies)
+    assert initial_threat_count > 0 or initial_enemy_count > 0, "No enemies spawned at start!"
+    
+    # Test forced spawn after 5 seconds of no interaction
+    # Start with a clean slate - no threats
+    pressure_system = PressureSpawningSystem()
+    threat_manager = ThreatLayerManager()
+    player = Player(400, 300)
+    from game.ai_companion import AICompanion
+    ai = AICompanion()
+    ai.current_advice = None  # No advice
+    
+    # Make sure there are no threats initially
+    assert threat_manager.get_total_threat_count() == 0
+    
+    # Simulate 5 seconds of no interaction (no threats, no damage, no advice)
+    for i in range(51):  # 51 * 0.1 = 5.1 seconds (slightly over threshold)
+        pressure_system.update(0.1, player, threat_manager, ai, 0.5)
+    
+    # Should trigger forced spawn flag
+    assert pressure_system.should_force_spawn() == True, "Forced spawn not triggered after 5 seconds"
+    assert pressure_system.time_since_last_interaction >= 5.0
+    
+    # Test that interaction resets the timer
+    pressure_system.on_player_damaged()
+    assert pressure_system.time_since_last_interaction == 0
+    assert pressure_system.should_force_spawn() == False
+    
+    # Test forced spawn at screen edge
+    threat_count_before = threat_manager.get_total_threat_count()
+    result = threat_manager.spawn_forced_threat_at_edge(player)
+    assert result == True
+    threat_count_after = threat_manager.get_total_threat_count()
+    assert threat_count_after > threat_count_before, "Forced spawn didn't create threat"
+    
+    # Verify hunter was spawned (should be 1)
+    assert len(threat_manager.hunters) == 1
+    
+    # Test reset after forced spawn
+    pressure_system.reset_forced_spawn()
+    assert pressure_system.should_force_spawn() == False
+    assert pressure_system.time_since_last_interaction == 0
+    
+    print("✓ Forced Spawn Mechanism tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -705,6 +764,7 @@ def main():
         test_phase_system,
         test_objectives_system,
         test_countdown_system,
+        test_forced_spawn_mechanism,
     ]
     
     passed = 0
