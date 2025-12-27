@@ -480,6 +480,204 @@ def test_cross_playthrough_memory():
     print("✓ Cross-Playthrough Memory tests passed")
     return True
 
+def test_threat_layers():
+    """Test new threat layer system"""
+    print("\nTesting Threat Layers...")
+    from game.threat_layers import Hunter, Watcher, CorruptionField, ThreatLayerManager
+    from game.player import Player
+    
+    player = Player(400, 300)
+    
+    # Test Hunter
+    hunter = Hunter(500, 300)
+    assert hunter.active == True
+    assert hunter.always_moving == True
+    attacked = hunter.update(0.1, player, 0.5)
+    assert isinstance(attacked, bool)
+    
+    # Test Watcher
+    watcher = Watcher(450, 300)
+    assert watcher.active == True
+    effect = watcher.update(0.1, player, 0.5)
+    # Should be observing player
+    assert watcher.is_observing == True
+    assert effect is not None
+    assert 'camera_lock' in effect
+    
+    # Test Corruption Field
+    field = CorruptionField(400, 400)
+    assert field.active == True
+    effect = field.update(0.1, player, 0.5)
+    # Player is close enough to be affected
+    assert effect is None or 'intensity' in effect
+    
+    # Test Threat Manager
+    manager = ThreatLayerManager()
+    manager.update(0.1, player, 0.5, 0.5)
+    assert manager.get_total_threat_count() >= 0
+    
+    print("✓ Threat Layers tests passed")
+    return True
+
+def test_pressure_spawning():
+    """Test pressure-based spawning system"""
+    print("\nTesting Pressure Spawning...")
+    from game.pressure_spawning import PressureSpawningSystem
+    from game.player import Player
+    from game.threat_layers import ThreatLayerManager
+    from game.ai_companion import AICompanion
+    
+    pressure = PressureSpawningSystem()
+    player = Player(400, 300)
+    threat_manager = ThreatLayerManager()
+    ai = AICompanion()
+    
+    # Initial pressure
+    initial_pressure = pressure.update(0.1, player, threat_manager, ai, 0.5)
+    assert 0.0 <= initial_pressure <= 1.0
+    
+    # Test stillness increases pressure
+    player.stop()
+    for _ in range(100):
+        pressure.update(0.1, player, threat_manager, ai, 0.5)
+    
+    assert pressure.player_stillness_duration > 0
+    
+    # Test on damage resets timer
+    pressure.on_player_damaged()
+    assert pressure.time_since_last_damage == 0
+    
+    print("✓ Pressure Spawning tests passed")
+    return True
+
+def test_player_abilities():
+    """Test player abilities system"""
+    print("\nTesting Player Abilities...")
+    from game.player_abilities import PlayerAbilities
+    from game.player import Player
+    from game.threat_layers import ThreatLayerManager
+    from game.enemy_manager import EnemyManager
+    from game.ai_companion import AICompanion
+    from game.reality_system import RealitySystem
+    
+    abilities = PlayerAbilities()
+    player = Player(400, 300)
+    threat_manager = ThreatLayerManager()
+    enemy_manager = EnemyManager()
+    ai = AICompanion()
+    reality = RealitySystem()
+    
+    # Test Focus
+    assert abilities.can_use_focus() == True
+    focus_result = abilities.use_focus(player)
+    assert focus_result is not None
+    assert abilities.focus_active == True
+    
+    # Test Burn (need energy first)
+    abilities.burn_energy = 100
+    assert abilities.can_use_burn() == True
+    burn_result = abilities.use_burn(player, threat_manager, enemy_manager)
+    assert burn_result is not None
+    assert 'cleared_count' in burn_result
+    
+    # Test Break
+    assert abilities.can_use_break() == True
+    break_result = abilities.use_break(ai, reality)
+    assert break_result is not None
+    assert 'type' in break_result
+    
+    # Test update
+    abilities.update(0.1)
+    
+    print("✓ Player Abilities tests passed")
+    return True
+
+def test_phase_system():
+    """Test phase escalation system"""
+    print("\nTesting Phase System...")
+    from game.phase_system import PhaseSystem
+    
+    phase_system = PhaseSystem()
+    
+    # Initial phase
+    assert phase_system.current_phase == 0
+    current_phase = phase_system.get_current_phase()
+    assert current_phase.phase_number == 0
+    
+    # Update to advance phase
+    phase_system.time_in_phase = 120  # Force advancement
+    phase_system.update(0.1, 120)
+    
+    # Check if rule exists
+    active_rules = phase_system.get_active_rule_effects()
+    assert isinstance(active_rules, dict)
+    
+    # Test time distortion
+    time_factor = phase_system.get_time_distortion_factor()
+    assert time_factor > 0
+    
+    print("✓ Phase System tests passed")
+    return True
+
+def test_objectives_system():
+    """Test objectives system"""
+    print("\nTesting Objectives System...")
+    from game.objectives_system import ObjectivesSystem, StabilizeZone, ReachSignal
+    from game.player import Player
+    from game.threat_layers import ThreatLayerManager
+    
+    objectives = ObjectivesSystem()
+    player = Player(400, 300)
+    threat_manager = ThreatLayerManager()
+    
+    # Test stabilize zone objective
+    stab_zone = StabilizeZone(450, 300)
+    assert stab_zone.active == True
+    stab_zone.update(0.1, player)
+    progress = stab_zone.get_progress_ratio()
+    assert 0.0 <= progress <= 1.0
+    
+    # Test reach signal objective
+    signal = ReachSignal(500, 300)
+    assert signal.active == True
+    signal.update(0.1, player)
+    
+    # Test objectives system update
+    objectives.update(1.0, player, threat_manager, 50.0)
+    objectives_count = objectives.get_objectives_count()
+    assert 'active' in objectives_count
+    
+    print("✓ Objectives System tests passed")
+    return True
+
+def test_countdown_system():
+    """Test countdown/uncertainty system"""
+    print("\nTesting Countdown System...")
+    from game.countdown_system import CountdownSystem, Countdown
+    from game.game_state import GameState
+    
+    # Test individual countdown
+    countdown = Countdown(5.0, 'spawn', True)
+    assert countdown.active == True
+    assert countdown.will_trigger == True
+    countdown.update(0.1)
+    assert countdown.time_remaining < 5.0
+    
+    # Test countdown system
+    system = CountdownSystem()
+    game_state = GameState()
+    
+    system.update(0.1, game_state)
+    visible = system.get_visible_countdowns()
+    assert isinstance(visible, list)
+    
+    stats = system.get_lie_statistics()
+    assert 'lie_ratio' in stats
+    assert 'total' in stats
+    
+    print("✓ Countdown System tests passed")
+    return True
+
 def main():
     """Run all tests"""
     print("=" * 50)
@@ -501,6 +699,12 @@ def main():
         test_reality_system,
         test_perception_based_enemies,
         test_cross_playthrough_memory,
+        test_threat_layers,
+        test_pressure_spawning,
+        test_player_abilities,
+        test_phase_system,
+        test_objectives_system,
+        test_countdown_system,
     ]
     
     passed = 0
