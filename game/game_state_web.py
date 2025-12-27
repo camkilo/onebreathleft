@@ -12,6 +12,12 @@ from game.ai_companion import AICompanion
 from game.enemy_manager import EnemyManager
 from game.behavior_profiler import BehaviorState
 from game.reality_system import RealitySystem
+from game.threat_layers import ThreatLayerManager
+from game.pressure_spawning import PressureSpawningSystem
+from game.player_abilities import PlayerAbilities
+from game.phase_system import PhaseSystem
+from game.objectives_system import ObjectivesSystem
+from game.countdown_system import CountdownSystem
 
 class GameStateWeb:
     """Web-compatible game state manager"""
@@ -20,7 +26,26 @@ class GameStateWeb:
         """Initialize game state"""
         self.player = Player(400, 300)
         self.world = World()
-        self.enemy_manager = EnemyManager()
+        self.enemy_manager = EnemyManager()  # Keep for backward compatibility
+        
+        # NEW SYSTEMS
+        # Threat layer system (replaces simple enemy spawning)
+        self.threat_manager = ThreatLayerManager()
+        
+        # Pressure-based spawning system
+        self.pressure_system = PressureSpawningSystem()
+        
+        # Player abilities (Focus, Burn, Break)
+        self.abilities = PlayerAbilities()
+        
+        # Phase escalation system
+        self.phase_system = PhaseSystem()
+        
+        # Objectives system
+        self.objectives_system = ObjectivesSystem()
+        
+        # Countdown/uncertainty system
+        self.countdown_system = CountdownSystem()
         
         # Load previous playthrough for AI companion
         self.ai_companion = AICompanion()
@@ -66,7 +91,7 @@ class GameStateWeb:
         }
         
     def update(self, dt):
-        """Update game state with micro time dilation"""
+        """Update game state with all new systems"""
         self.game_time += dt
         
         # Apply movement from current input
@@ -89,6 +114,13 @@ class GameStateWeb:
         ai_speaking = self.ai_companion.current_advice is not None
         enemy_time_dilation = 1.15 if ai_speaking else 1.0
         
+        # Apply phase time distortion
+        phase_time_factor = self.phase_system.get_time_distortion_factor()
+        enemy_time_dilation *= phase_time_factor
+        
+        # Update player abilities
+        self.abilities.update(dt)
+        
         # Update player with time dilation
         self.player.update(dt, player_time_dilation)
         
@@ -98,7 +130,24 @@ class GameStateWeb:
         # World update with reality stability
         self.world.update(dt, self.trust_level, self.reality_system)
         
-        # Update enemies with accelerated time when appropriate
+        # Update pressure-based spawning system
+        pressure_score = self.pressure_system.update(
+            dt, 
+            self.player, 
+            self.threat_manager,
+            self.ai_companion, 
+            self.trust_level
+        )
+        
+        # Update threat layers (replaces old enemy system)
+        self.threat_manager.update(
+            dt * enemy_time_dilation,
+            self.player,
+            self.trust_level,
+            pressure_score
+        )
+        
+        # Keep old enemy manager for backward compatibility
         self.enemy_manager.update(
             dt * enemy_time_dilation,
             self.player, 
@@ -106,6 +155,17 @@ class GameStateWeb:
             self.behavior_state,
             ai_speaking
         )
+        
+        # Update phase system
+        self.phase_system.update(dt, self.game_time)
+        self.phase_system.apply_phase_rules_to_enemy_manager(self.enemy_manager, self.threat_manager)
+        self.phase_system.apply_phase_rules_to_ai(self.ai_companion)
+        
+        # Update objectives system
+        self.objectives_system.update(dt, self.player, self.threat_manager, self.game_time)
+        
+        # Update countdown system
+        self.countdown_system.update(dt, self)
         
         self.ai_companion.update(dt, self)
         
@@ -126,7 +186,7 @@ class GameStateWeb:
         # Check for ending conditions
         self._check_ending_conditions()
         
-        # Adjust difficulty based on trust
+        # Adjust difficulty based on trust and abilities
         self._adjust_difficulty()
         
     def get_state_dict(self):
@@ -168,6 +228,51 @@ class GameStateWeb:
                 }
                 for e in self.enemy_manager.enemies
             ],
+            'threats': {
+                'hunters': [
+                    {'x': h.x, 'y': h.y}
+                    for h in self.threat_manager.hunters
+                ],
+                'watchers': [
+                    {'x': w.x, 'y': w.y, 'observing': w.is_observing}
+                    for w in self.threat_manager.watchers
+                ],
+                'corruption_fields': [
+                    {'x': f.x, 'y': f.y, 'radius': f.radius, 'type': f.field_type}
+                    for f in self.threat_manager.corruption_fields
+                ]
+            },
+            'abilities': {
+                'focus': {
+                    'cooldown': self.abilities.focus_cooldown,
+                    'max_cooldown': self.abilities.focus_max_cooldown,
+                    'active': self.abilities.focus_active,
+                    'can_use': self.abilities.can_use_focus()
+                },
+                'burn': {
+                    'cooldown': self.abilities.burn_cooldown,
+                    'max_cooldown': self.abilities.burn_max_cooldown,
+                    'energy': self.abilities.burn_energy,
+                    'can_use': self.abilities.can_use_burn()
+                },
+                'break': {
+                    'cooldown': self.abilities.break_cooldown,
+                    'max_cooldown': self.abilities.break_max_cooldown,
+                    'can_use': self.abilities.can_use_break(),
+                    'glitch_active': self.abilities.break_glitch_active
+                }
+            },
+            'phase': {
+                'current': self.phase_system.current_phase,
+                'name': self.phase_system.get_current_phase().name,
+                'time_in_phase': self.phase_system.time_in_phase
+            },
+            'objectives': self.objectives_system.get_active_objectives_info(),
+            'countdowns': self.countdown_system.get_visible_countdowns(),
+            'pressure': {
+                'score': self.pressure_system.pressure_score,
+                'description': self.pressure_system.get_pressure_description()
+            },
             'ai': {
                 'advice': self.ai_companion.get_current_advice(),
                 'confidence': self.ai_companion.confidence,
@@ -212,14 +317,49 @@ class GameStateWeb:
         # Notify behavior profiler
         self.behavior_state.on_advice_ignored(self.game_time)
         
+        # Notify pressure system (mistake increases pressure)
+        self.pressure_system.on_player_mistake()
+    
+    def use_ability_focus(self):
+        """Use Focus ability"""
+        result = self.abilities.use_focus(self.player)
+        if result:
+            self.record_action("ability_focus", {"time": self.game_time})
+        return result
+    
+    def use_ability_burn(self):
+        """Use Burn ability"""
+        result = self.abilities.use_burn(self.player, self.threat_manager, self.enemy_manager)
+        if result:
+            self.record_action("ability_burn", {
+                "time": self.game_time,
+                "cleared": result['cleared_count']
+            })
+            self._adjust_difficulty()
+        return result
+    
+    def use_ability_break(self):
+        """Use Break ability"""
+        result = self.abilities.use_break(self.ai_companion, self.reality_system)
+        if result:
+            self.record_action("ability_break", {
+                "time": self.game_time,
+                "effect": result['type']
+            })
+        return result
+        
     def _adjust_difficulty(self):
-        """Adjust game difficulty based on trust level"""
+        """Adjust game difficulty based on trust level and abilities"""
+        base_modifier = 1.0
         if self.trust_level > 0.7:
-            self.enemy_manager.difficulty_modifier = 0.8
+            base_modifier = 0.8
         elif self.trust_level < 0.3:
-            self.enemy_manager.difficulty_modifier = 1.3
-        else:
-            self.enemy_manager.difficulty_modifier = 1.0
+            base_modifier = 1.3
+        
+        # Apply burn ability difficulty increase
+        burn_multiplier = self.abilities.get_burn_difficulty_multiplier()
+        
+        self.enemy_manager.difficulty_modifier = base_modifier * burn_multiplier
             
     def _check_ending_conditions(self):
         """Check if any ending conditions are met"""
@@ -267,7 +407,12 @@ class GameStateWeb:
             "advice_ignored": self.advice_ignored,
             "actions": self.playthrough_actions,
             "behavior_profile": self.behavior_state.get_state_dict(),
-            "ai_intent_history": self.ai_companion.intent_history
+            "ai_intent_history": self.ai_companion.intent_history,
+            "abilities_used": self.abilities.get_state_dict(),
+            "final_phase": self.phase_system.get_state_dict(),
+            "objectives_completed": self.objectives_system.get_objectives_count(),
+            "countdown_stats": self.countdown_system.get_lie_statistics(),
+            "pressure_final": self.pressure_system.pressure_score
         }
         
         with open("playthroughs/latest.json", "w") as f:
