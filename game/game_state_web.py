@@ -41,6 +41,9 @@ class GameStateWeb:
         # Pressure-based spawning system
         self.pressure_system = PressureSpawningSystem()
         
+        # Hook up damage callback to pressure system
+        self.player.on_damage_callback = self.pressure_system.on_player_damaged
+        
         # Player abilities (Focus, Burn, Break)
         self.abilities = PlayerAbilities()
         
@@ -87,6 +90,19 @@ class GameStateWeb:
             'move_y': 0,
             'running': False
         }
+        
+        # CRITICAL: Ensure enemy spawns within 3 seconds
+        self._force_initial_spawn()
+    
+    def _force_initial_spawn(self):
+        """
+        CRITICAL RULE: Enemy count > 0 within 3 seconds of start.
+        Spawn initial threats immediately to ensure game is never empty.
+        """
+        # Spawn at least one hunter at the start
+        self.threat_manager.spawn_forced_threat_at_edge(self.player)
+        # Also spawn via old enemy manager for redundancy
+        self.enemy_manager._spawn_enemy(self.player, self.trust_level)
         
     def apply_input(self, input_data):
         """Apply player input from web client"""
@@ -144,6 +160,11 @@ class GameStateWeb:
             self.ai_companion, 
             self.trust_level
         )
+        
+        # CRITICAL RULE: Check if forced spawn is needed (5 second rule)
+        if self.pressure_system.should_force_spawn():
+            self.threat_manager.spawn_forced_threat_at_edge(self.player)
+            self.pressure_system.reset_forced_spawn()
         
         # Update threat layers (replaces old enemy system)
         self.threat_manager.update(

@@ -336,6 +336,39 @@ class ThreatLayerManager:
         """Get active corruption field effects"""
         return self.active_field_effects if self.active_field_effects else None
     
+    def spawn_forced_threat_at_edge(self, player):
+        """
+        CRITICAL RULE: Spawn a threat at screen edge moving inward.
+        Called when nothing has interacted with the player in 5 seconds.
+        """
+        # Choose a random edge (top, bottom, left, right)
+        edge = random.choice(['top', 'bottom', 'left', 'right'])
+        
+        # Screen dimensions (approximate game view area)
+        screen_width = 800
+        screen_height = 600
+        edge_distance = 400  # Distance from player to edge
+        
+        # Calculate spawn position at edge
+        if edge == 'top':
+            x = player.x + random.uniform(-screen_width/2, screen_width/2)
+            y = player.y - edge_distance
+        elif edge == 'bottom':
+            x = player.x + random.uniform(-screen_width/2, screen_width/2)
+            y = player.y + edge_distance
+        elif edge == 'left':
+            x = player.x - edge_distance
+            y = player.y + random.uniform(-screen_height/2, screen_height/2)
+        else:  # right
+            x = player.x + edge_distance
+            y = player.y + random.uniform(-screen_height/2, screen_height/2)
+        
+        # Spawn a hunter (aggressive threat that moves toward player)
+        hunter = Hunter(x, y)
+        self.hunters.append(hunter)
+        
+        return True  # Signal that forced spawn occurred
+    
     def clear_all_threats(self):
         """Remove all threats"""
         self.hunters.clear()

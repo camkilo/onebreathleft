@@ -11,6 +11,9 @@ class PressureSpawningSystem:
     """
     Calculates spawning pressure based on multiple factors.
     Output is a pressure score (0-1) that drives threat spawning.
+    
+    CRITICAL RULE: If nothing has interacted with the player in 5 seconds,
+    spawn a threat at screen edge moving inward.
     """
     
     def __init__(self):
@@ -19,14 +22,19 @@ class PressureSpawningSystem:
         self.time_since_last_damage = 0
         self.time_since_last_advice = 0
         self.screen_emptiness_duration = 0
+        self.time_since_last_interaction = 0  # Track ALL interactions
         
         # Thresholds
         self.stillness_threshold = 2.0  # seconds before stillness increases pressure
         self.safe_feeling_threshold = 5.0  # seconds of "safety" before spawning
+        self.forced_spawn_threshold = 5.0  # RULE: Force spawn after 5 seconds
         self.stillness_speed_threshold_sq = 400  # 20^2 - avoid sqrt for performance
         
         # Current pressure score
         self.pressure_score = 0.3  # Start with moderate pressure
+        
+        # Forced spawn state
+        self.needs_forced_spawn = False
         
     def update(self, dt, player, threat_manager, ai_companion, trust_level):
         """
@@ -35,6 +43,9 @@ class PressureSpawningSystem:
         Returns:
             float: Pressure score (0-1)
         """
+        # Track time since ANY interaction (damage, advice, enemy presence)
+        self.time_since_last_interaction += dt
+        
         # Track player stillness using squared magnitude (avoid sqrt)
         player_speed_sq = player.velocity_x**2 + player.velocity_y**2
         if player_speed_sq < self.stillness_speed_threshold_sq:  # Standing still
@@ -48,6 +59,7 @@ class PressureSpawningSystem:
         # Track time since last AI advice
         if ai_companion.current_advice:
             self.time_since_last_advice = 0
+            self.time_since_last_interaction = 0  # AI advice counts as interaction
         else:
             self.time_since_last_advice += dt
         
@@ -57,6 +69,12 @@ class PressureSpawningSystem:
             self.screen_emptiness_duration += dt
         else:
             self.screen_emptiness_duration = 0
+            # Any threat presence counts as interaction
+            self.time_since_last_interaction = 0
+        
+        # CRITICAL RULE: Force spawn if no interaction for 5 seconds
+        if self.time_since_last_interaction >= self.forced_spawn_threshold:
+            self.needs_forced_spawn = True
         
         # Calculate pressure components
         stillness_pressure = self._calculate_stillness_pressure()
@@ -108,6 +126,22 @@ class PressureSpawningSystem:
     def on_player_damaged(self):
         """Reset safety timer when player takes damage"""
         self.time_since_last_damage = 0
+        self.time_since_last_interaction = 0  # Damage is interaction
+        self.needs_forced_spawn = False  # Clear forced spawn flag
+        
+    def on_interaction(self):
+        """Reset interaction timer - called for any player interaction"""
+        self.time_since_last_interaction = 0
+        self.needs_forced_spawn = False  # Clear forced spawn flag
+    
+    def should_force_spawn(self):
+        """Check if forced spawn is needed (5 second rule)"""
+        return self.needs_forced_spawn
+    
+    def reset_forced_spawn(self):
+        """Clear forced spawn flag after spawning"""
+        self.needs_forced_spawn = False
+        self.time_since_last_interaction = 0
     
     def on_player_mistake(self):
         """Player made a mistake (missed advice, bad decision)"""
