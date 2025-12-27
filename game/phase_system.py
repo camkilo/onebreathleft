@@ -7,6 +7,12 @@ Rules stack to naturally increase complexity.
 import random
 
 
+# Phase duration constants
+PHASE_BASE_DURATION = 90  # Base seconds per phase
+PHASE_DURATION_VARIANCE_MIN = -15  # Minimum variance
+PHASE_DURATION_VARIANCE_MAX = 15  # Maximum variance
+
+
 class GamePhase:
     """Represents a single game phase with its rules"""
     
@@ -26,7 +32,7 @@ class PhaseSystem:
     def __init__(self):
         self.current_phase = 0
         self.time_in_phase = 0
-        self.phase_duration = 90  # Base duration, randomized
+        self.phase_duration = PHASE_BASE_DURATION
         self.active_rules = set()
         
         # Define all phases
@@ -108,8 +114,11 @@ class PhaseSystem:
         self.time_in_phase += dt
         
         # Check if it's time to advance phase
-        # Randomize duration: 90-120 seconds
-        phase_threshold = self.phase_duration + random.uniform(-15, 15)
+        # Randomize duration: base +/- variance
+        phase_threshold = self.phase_duration + random.uniform(
+            PHASE_DURATION_VARIANCE_MIN, 
+            PHASE_DURATION_VARIANCE_MAX
+        )
         
         if self.time_in_phase >= phase_threshold:
             self._advance_phase()

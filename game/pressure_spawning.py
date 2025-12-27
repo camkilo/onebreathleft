@@ -23,6 +23,7 @@ class PressureSpawningSystem:
         # Thresholds
         self.stillness_threshold = 2.0  # seconds before stillness increases pressure
         self.safe_feeling_threshold = 5.0  # seconds of "safety" before spawning
+        self.stillness_speed_threshold_sq = 400  # 20^2 - avoid sqrt for performance
         
         # Current pressure score
         self.pressure_score = 0.3  # Start with moderate pressure
@@ -34,9 +35,9 @@ class PressureSpawningSystem:
         Returns:
             float: Pressure score (0-1)
         """
-        # Track player stillness
-        player_speed = math.sqrt(player.velocity_x**2 + player.velocity_y**2)
-        if player_speed < 20:  # Standing still
+        # Track player stillness using squared magnitude (avoid sqrt)
+        player_speed_sq = player.velocity_x**2 + player.velocity_y**2
+        if player_speed_sq < self.stillness_speed_threshold_sq:  # Standing still
             self.player_stillness_duration += dt
         else:
             self.player_stillness_duration = max(0, self.player_stillness_duration - dt * 0.5)

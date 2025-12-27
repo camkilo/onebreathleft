@@ -133,7 +133,7 @@ class PlayerAbilities:
         for hunter in list(threat_manager.hunters):
             dx = player.x - hunter.x
             dy = player.y - hunter.y
-            distance = (dx*dx + dy*dy) ** 0.5
+            distance = math.sqrt(dx*dx + dy*dy)
             if distance < clear_radius:
                 hunter.active = False
                 cleared_count += 1
@@ -142,7 +142,7 @@ class PlayerAbilities:
         for watcher in list(threat_manager.watchers):
             dx = player.x - watcher.x
             dy = player.y - watcher.y
-            distance = (dx*dx + dy*dy) ** 0.5
+            distance = math.sqrt(dx*dx + dy*dy)
             if distance < clear_radius:
                 watcher.active = False
                 cleared_count += 1
@@ -151,7 +151,7 @@ class PlayerAbilities:
         for enemy in list(enemy_manager.enemies):
             dx = player.x - enemy.x
             dy = player.y - enemy.y
-            distance = (dx*dx + dy*dy) ** 0.5
+            distance = math.sqrt(dx*dx + dy*dy)
             if distance < clear_radius:
                 enemy.active = False
                 cleared_count += 1

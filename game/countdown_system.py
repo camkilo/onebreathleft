@@ -8,6 +8,12 @@ Uncertainty creates instant engagement.
 import random
 
 
+# Event spawn weights
+SPAWN_WEIGHT = 0.6
+CORRUPTION_WEIGHT = 0.3
+BLESSING_WEIGHT = 0.1
+
+
 class Countdown:
     """A single countdown event"""
     
@@ -111,7 +117,7 @@ class CountdownSystem:
                 if pressure > 0.7:
                     event_type = random.choices(
                         event_types,
-                        weights=[0.6, 0.3, 0.1]
+                        weights=[SPAWN_WEIGHT, CORRUPTION_WEIGHT, BLESSING_WEIGHT]
                     )[0]
                 else:
                     event_type = random.choice(event_types)

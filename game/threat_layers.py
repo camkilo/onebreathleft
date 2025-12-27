@@ -50,12 +50,16 @@ class Hunter:
         hunt_dy = self.hunt_target_y - self.y
         hunt_dist = math.sqrt(hunt_dx*hunt_dx + hunt_dy*hunt_dy)
         
-        if hunt_dist > 0:
+        if hunt_dist > 0.1:  # Add epsilon check to avoid division by zero and stuck state
             hunt_dx /= hunt_dist
             hunt_dy /= hunt_dist
             
-        self.x += hunt_dx * self.speed * dt
-        self.y += hunt_dy * self.speed * dt
+            self.x += hunt_dx * self.speed * dt
+            self.y += hunt_dy * self.speed * dt
+        else:
+            # If at hunt target, pick a new one immediately
+            self.hunt_target_x = player.x + random.uniform(-100, 100)
+            self.hunt_target_y = player.y + random.uniform(-100, 100)
         
         # Attack if close enough
         if distance < self.attack_radius:

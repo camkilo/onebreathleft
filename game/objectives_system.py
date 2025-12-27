@@ -8,6 +8,13 @@ import random
 import math
 
 
+# Objective type constants
+OBJECTIVE_TYPE_STABILIZE = 'stabilize'
+OBJECTIVE_TYPE_SIGNAL = 'signal'
+OBJECTIVE_TYPE_PROTECT = 'protect'
+OBJECTIVE_TYPE_ABANDON = 'abandon'
+
+
 class Objective:
     """Base class for game objectives"""
     
@@ -270,19 +277,19 @@ class ObjectivesSystem:
         
         # Choose objective type
         objective_type = random.choice([
-            'stabilize',
-            'signal',
-            'protect',
-            'abandon'
+            OBJECTIVE_TYPE_STABILIZE,
+            OBJECTIVE_TYPE_SIGNAL,
+            OBJECTIVE_TYPE_PROTECT,
+            OBJECTIVE_TYPE_ABANDON
         ])
         
-        if objective_type == 'stabilize':
+        if objective_type == OBJECTIVE_TYPE_STABILIZE:
             obj = StabilizeZone(x, y)
-        elif objective_type == 'signal':
+        elif objective_type == OBJECTIVE_TYPE_SIGNAL:
             obj = ReachSignal(x, y)
-        elif objective_type == 'protect':
+        elif objective_type == OBJECTIVE_TYPE_PROTECT:
             obj = ProtectFollower(x, y)
-        elif objective_type == 'abandon':
+        elif objective_type == OBJECTIVE_TYPE_ABANDON:
             # Need two positions
             angle2 = angle + math.pi / 2
             x2 = player.x + math.cos(angle2) * distance

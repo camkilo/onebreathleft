@@ -18,6 +18,12 @@ from game.player_abilities import PlayerAbilities
 from game.phase_system import PhaseSystem
 from game.objectives_system import ObjectivesSystem
 from game.countdown_system import CountdownSystem
+from game.constants import (
+    DIFFICULTY_HIGH_TRUST_THRESHOLD,
+    DIFFICULTY_LOW_TRUST_THRESHOLD,
+    DIFFICULTY_HIGH_TRUST_MODIFIER,
+    DIFFICULTY_LOW_TRUST_MODIFIER
+)
 
 class GameStateWeb:
     """Web-compatible game state manager"""
@@ -351,10 +357,10 @@ class GameStateWeb:
     def _adjust_difficulty(self):
         """Adjust game difficulty based on trust level and abilities"""
         base_modifier = 1.0
-        if self.trust_level > 0.7:
-            base_modifier = 0.8
-        elif self.trust_level < 0.3:
-            base_modifier = 1.3
+        if self.trust_level > DIFFICULTY_HIGH_TRUST_THRESHOLD:
+            base_modifier = DIFFICULTY_HIGH_TRUST_MODIFIER
+        elif self.trust_level < DIFFICULTY_LOW_TRUST_THRESHOLD:
+            base_modifier = DIFFICULTY_LOW_TRUST_MODIFIER
         
         # Apply burn ability difficulty increase
         burn_multiplier = self.abilities.get_burn_difficulty_multiplier()
